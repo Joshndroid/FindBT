@@ -1,0 +1,19 @@
+[package]
+name = "findbt-app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Shared native FindBT UI built with egui/eframe."
+build = "build.rs"
+
+[features]
+default = []
+mock-backend = ["findbt-backend/mock-backend"]
+
+[dependencies]
+chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
+eframe = "0.35"
+egui = "0.35"
+findbt-backend = { path = "../findbt-backend" }
+findbt-core = { path = "../findbt-core" }
+rfd = "0.17"

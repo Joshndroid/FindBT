@@ -1,0 +1,83 @@
+# FindBT generated outputs
+FindBT-Release/
+artifacts/
+publish/
+TestResults/
+
+# Rust workspace outputs
+target/
+rust-app/target/
+rust-app/dist/
+**/*.rs.bk
+
+# .NET build outputs
+bin/
+obj/
+**/bin/
+**/obj/
+*.nupkg
+*.snupkg
+
+# Local app/runtime state
+radio-identity.json
+findbt-crash.log
+FindBT-report-*.html
+defender-scan.txt
+
+# Installer/package byproducts
+*.msi
+*.pkg
+*.dmg
+*.zip
+*.tar.gz
+*.sha256
+*.sha256.txt
+
+# Visual Studio local state
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.rsuser
+
+# VS Code local state. Keep shared workspace config tracked.
+.vscode/.ropeproject/
+.vscode/settings.json
+.vscode/*.code-workspace
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# Rider / ReSharper
+.idea/
+_ReSharper*/
+*.DotSettings.user
+
+# OS and filesystem noise
+.DS_Store
+.AppleDouble/
+.LSOverride
+._*
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+plan.md
+
+# Editor swap/backup files
+*.swp
+*.swo
+*~
+*.bak
+*.orig
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+*.pid
+
+# Local environment files
+.env
+.env.*
+!.env.example

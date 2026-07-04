@@ -1,0 +1,69 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "rust: build debug",
+      "type": "shell",
+      "command": "cargo",
+      "args": ["build", "-p", "findbt-app"],
+      "options": {
+        "cwd": "${workspaceFolder}/rust-app"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": "$rustc"
+    },
+    {
+      "label": "rust: build debug mock",
+      "type": "shell",
+      "command": "cargo",
+      "args": ["build", "-p", "findbt-app", "--features", "mock-backend"],
+      "options": {
+        "cwd": "${workspaceFolder}/rust-app"
+      },
+      "group": "build",
+      "problemMatcher": "$rustc"
+    },
+    {
+      "label": "rust: package macos",
+      "type": "shell",
+      "command": "${workspaceFolder}/rust-app/scripts/package-macos.sh",
+      "options": {
+        "cwd": "${workspaceFolder}/rust-app"
+      },
+      "group": "build",
+      "problemMatcher": [],
+      "windows": {
+        "command": "echo",
+        "args": ["macOS packaging must be run on macOS."]
+      }
+    },
+    {
+      "label": "rust: package windows",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/rust-app/scripts/package-windows.ps1"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/rust-app"
+      },
+      "group": "build",
+      "problemMatcher": [],
+      "osx": {
+        "command": "echo",
+        "args": ["Windows packaging must be run on Windows."]
+      },
+      "linux": {
+        "command": "echo",
+        "args": ["Windows packaging must be run on Windows."]
+      }
+    }
+  ]
+}

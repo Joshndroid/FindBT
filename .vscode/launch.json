@@ -1,0 +1,29 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "FindBT Rust (native debug)",
+      "type": "lldb",
+      "request": "launch",
+      "preLaunchTask": "rust: build debug",
+      "program": "${workspaceFolder}/rust-app/target/debug/findbt-app",
+      "args": [],
+      "cwd": "${workspaceFolder}/rust-app",
+      "windows": {
+        "program": "${workspaceFolder}/rust-app/target/debug/findbt-app.exe"
+      }
+    },
+    {
+      "name": "FindBT Rust (mock debug)",
+      "type": "lldb",
+      "request": "launch",
+      "preLaunchTask": "rust: build debug mock",
+      "program": "${workspaceFolder}/rust-app/target/debug/findbt-app",
+      "args": [],
+      "cwd": "${workspaceFolder}/rust-app",
+      "windows": {
+        "program": "${workspaceFolder}/rust-app/target/debug/findbt-app.exe"
+      }
+    }
+  ]
+}

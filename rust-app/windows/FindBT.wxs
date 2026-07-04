@@ -1,0 +1,40 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+    Name="FindBT"
+    Manufacturer="FindBT"
+    Version="$(var.Version)"
+    UpgradeCode="7D1135AF-4C1E-4FA3-90F7-25E4AC622FF7"
+    Scope="perMachine">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of FindBT is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Feature Id="MainFeature" Title="FindBT" Level="1">
+      <ComponentGroupRef Id="FindBTComponents" />
+    </Feature>
+    <Icon Id="FindBTIcon" SourceFile="$(var.SourceDir)\FindBT.ico" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="FindBT" />
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder" />
+
+    <ComponentGroup Id="FindBTComponents" Directory="INSTALLFOLDER">
+      <Component Id="FindBTExecutable">
+        <File Id="FindBTExe" Source="$(var.SourceDir)\FindBT.exe" KeyPath="yes" />
+        <Shortcut
+          Id="FindBTStartMenuShortcut"
+          Directory="ProgramMenuFolder"
+          Name="FindBT"
+          Icon="FindBTIcon"
+          Target="[INSTALLFOLDER]FindBT.exe"
+          WorkingDirectory="INSTALLFOLDER" />
+      </Component>
+      <Component Id="FindBTIconFile">
+        <File Id="FindBTIconFile" Source="$(var.SourceDir)\FindBT.ico" KeyPath="yes" />
+      </Component>
+      <Component Id="FindBTQuickstart">
+        <File Id="FindBTQuickstartFile" Source="$(var.SourceDir)\quickstart.txt" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+  </Package>
+</Wix>

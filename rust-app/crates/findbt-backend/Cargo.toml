@@ -1,0 +1,58 @@
+[package]
+name = "findbt-backend"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Bluetooth capture backends for FindBT, with a deterministic mock for UI development."
+
+[features]
+default = []
+mock-backend = []
+
+[dependencies]
+chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
+findbt-core = { path = "../findbt-core" }
+serde_json = "1"
+thiserror = "2"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62.2", features = [
+    "Devices_Bluetooth",
+    "Devices_Bluetooth_Advertisement",
+    "Devices_Enumeration",
+    "Foundation",
+    "Foundation_Collections",
+] }
+windows-collections = "0.3.2"
+windows-core = "0.62.2"
+windows-future = "0.3.2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6.4"
+objc2-core-bluetooth = { version = "0.3.2", features = [
+    "dispatch2",
+    "CBAdvertisementData",
+    "CBCentralManager",
+    "CBCentralManagerConstants",
+    "CBManager",
+    "CBPeer",
+    "CBPeripheral",
+    "CBUUID",
+] }
+objc2-foundation = { version = "0.3.2", features = [
+    "NSArray",
+    "NSDictionary",
+    "NSObject",
+    "NSString",
+    "NSUUID",
+    "NSValue",
+] }
+objc2-io-bluetooth = { version = "0.3.2", features = [
+    "Bluetooth",
+    "IOBluetoothDevice",
+    "IOBluetoothDeviceInquiry",
+    "IOBluetoothHostController",
+    "IOBluetoothObject",
+    "IOBluetoothUserLib",
+    "objc2-foundation",
+] }

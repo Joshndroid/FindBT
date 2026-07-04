@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust:
+    name: Rust (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@v2
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Install Rust components
+        run: rustup component add rustfmt clippy
+
+      - name: Rust format
+        if: runner.os != 'Windows'
+        working-directory: rust-app
+        run: cargo fmt --all -- --check
+
+      - name: Rust check
+        working-directory: rust-app
+        run: cargo check --workspace --all-targets
+
+      - name: Rust clippy
+        working-directory: rust-app
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Rust tests
+        working-directory: rust-app
+        run: cargo test --workspace

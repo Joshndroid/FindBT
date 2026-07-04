@@ -1,0 +1,16 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/findbt-core",
+    "crates/findbt-backend",
+    "crates/findbt-app",
+]
+
+[workspace.package]
+version = "0.3.0"
+edition = "2021"
+rust-version = "1.75"
+
+[profile.release]
+opt-level = 3
+lto = true

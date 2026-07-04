@@ -1,0 +1,12 @@
+[package]
+name = "findbt-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description = "Platform-agnostic phase/registry/report logic for FindBT. No OS-specific Bluetooth code lives here."
+
+[dependencies]
+chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
+
+[dev-dependencies]
+# Used only by unit tests below.
