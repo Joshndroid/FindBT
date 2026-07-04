@@ -49,6 +49,16 @@ Building with `--features mock-backend` swaps in a deterministic scripted backen
 
 Both formats contain the same sections: capture metadata, phase runs, per-phase summary, deduplicated device registry, and the append-only raw audit log. Operating caveats (system clock, radio/antenna limits) are covered in [QUICKSTART.md](QUICKSTART.md) rather than printed on the report.
 
+## Settings persistence
+
+The app follows the operating system's light/dark theme by default; the operator can override this under **Settings → Appearance**. Where that preference is stored depends on how FindBT is running — the app detects this itself by checking whether its own directory is writable, so no flags or separate builds are involved:
+
+- **Portable zips (writable app folder):** a `settings.json` beside `FindBT.exe` / `FindBT.app`. The whole app travels as one self-contained folder, and nothing is written to the registry or the user profile — deliberate, so a portable copy leaves no configuration behind on the host.
+- **Installed via MSI on Windows (Program Files, not writable):** per-user registry values under `HKCU\Software\FindBT`. No settings.json is created anywhere.
+- **Installed via pkg on macOS (no registry exists):** the platform-standard `~/Library/Application Support/FindBT/settings.json`.
+
+Settings input is treated as untrusted and strictly validated (`crates/findbt-app/src/settings.rs`). A `settings.json` is only honored if it is under 8 KB, parses as JSON with exactly the expected schema (unknown fields rejected), carries the `"app": "FindBT"` marker and a supported `settings_version`, and every value is a member of a closed set — arbitrary strings are never trusted. Registry values are validated the same way. If any check fails — file missing, corrupt, oversized, or belonging to something else — the app silently runs on built-in defaults; a bad settings source can never break a capture. Writes are atomic (temp file + rename) so a crash mid-write cannot leave a truncated file.
+
 ## Development
 
 VS Code defaults target the Rust app. `Terminal > Run Build Task` builds the native debug app for the current OS, and `F5` launches `FindBT Rust (native debug)` through CodeLLDB. Use `FindBT Rust (mock debug)` for UI work without Bluetooth hardware.
@@ -73,7 +83,7 @@ cd rust-app
 scripts/package-macos.sh
 ```
 
-This creates a `.pkg` installer, portable zip, offline portable zip, SHA256 files, and `local-release.txt` under `rust-app/dist/macos/artifacts/`.
+This creates a `.pkg` installer, portable zip, SHA256 files, and `local-release.txt` under `rust-app/dist/macos/artifacts/`. The offline portable package is a Windows-only artifact and is not produced for macOS.
 
 Windows:
 
@@ -82,20 +92,20 @@ cd rust-app
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-windows.ps1 -RequireDefender
 ```
 
-This creates portable/offline zips, SHA256 files, and `local-release.txt` under `rust-app/dist/windows/artifacts/`. It also creates an MSI when WiX v4 is installed locally and runs Microsoft Defender scans when available.
+This creates portable and offline portable zips, SHA256 files, and `local-release.txt` under `rust-app/dist/windows/artifacts/`. It also creates an MSI when WiX v4 is installed locally and runs Microsoft Defender scans when available. The `-Artifact` parameter selects what gets built: `Installer` (MSI + portable zip), `OfflinePortable` (offline zip only), or `All` (local default) — CI uses the first two on separate runners so the offline portable is built and audited in isolation.
 
 Portable archives include the app, `quickstart.txt`, and `local-release.txt`.
 
 ## GitHub Automation
 
-This repository includes GitHub automation for Dependabot, CI, dependency review, daily security scanning, and release packaging.
+This repository includes GitHub automation for Dependabot, CI, dependency review, workflow security linting, and release packaging. Code scanning itself is handled by GitHub's built-in CodeQL default setup, Dependabot alerts, and secret scanning (enabled in repository settings).
 
 - Dependabot checks Cargo and GitHub Actions daily.
 - CI builds/checks/tests the Rust app on macOS and Windows.
-- Pull requests run dependency review (fails on moderate+ vulnerabilities and GPL/AGPL licenses).
-- Daily security scans run RustSec cargo audit, Trivy, ClamAV, actionlint, zizmor workflow analysis, and OSSF Scorecard.
-- The manual `Release` workflow supports dry runs, macOS signing/notarization hooks, WiX MSI creation, and Windows Defender scans.
-- Workflow tokens are least-privilege (`contents: read` by default, `contents: write` only on the release publish job) and checkouts use `persist-credentials: false`.
+- Pull requests run dependency review (fails on moderate+ vulnerabilities).
+- Pull requests touching `.github/workflows/` run actionlint and zizmor workflow security analysis.
+- The manual `Release` workflow builds three isolated jobs — macOS installer, Windows installer, and Windows offline portable (its own runner, separate artifact) — and supports dry runs, macOS signing/notarization hooks, WiX MSI creation, and Windows Defender scans.
+- Workflow tokens are least-privilege (`contents: read` by default, `contents: write` only on the release publish job), checkouts use `persist-credentials: false`, and every action is pinned to a full commit SHA.
 
 Run the `Release` workflow with `dry_run: true` to build and upload release artifacts without publishing a GitHub release.
 

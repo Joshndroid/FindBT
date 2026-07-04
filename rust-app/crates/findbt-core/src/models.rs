@@ -145,8 +145,12 @@ impl SignalStrength {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CaseMetadata {
     pub date: NaiveDate,
+    /// Scan reference (shown as "SCAN REFERENCE" in the wizard).
     pub name: String,
+    /// Target device reference (shown as "TARGET DEVICE REFERENCE" in the wizard).
     pub section: String,
+    /// Operator running the capture.
+    pub user: String,
 }
 
 impl CaseMetadata {
@@ -161,6 +165,8 @@ impl CaseMetadata {
 pub struct HostAdapterInfo {
     pub name: String,
     pub address: String,
+    /// Host machine's name, detected at wizard time and editable by the operator.
+    pub computer_name: String,
 }
 
 impl HostAdapterInfo {

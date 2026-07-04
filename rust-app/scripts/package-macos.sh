@@ -11,14 +11,15 @@ RELEASE_DIR="${DIST_DIR}/release"
 ARTIFACT_DIR="${DIST_DIR}/artifacts"
 APP_DIR="${RELEASE_DIR}/${APP_NAME}.app"
 PORTABLE_STAGING="${DIST_DIR}/${RELEASE}-portable"
-OFFLINE_STAGING="${DIST_DIR}/${RELEASE}-offline-portable"
 LOCAL_RELEASE="${ARTIFACT_DIR}/local-release.txt"
 
 cd "${ROOT}"
 "${ROOT}/scripts/build-macos-app.sh" release
 
-rm -rf "${ARTIFACT_DIR}" "${PORTABLE_STAGING}" "${OFFLINE_STAGING}"
-mkdir -p "${ARTIFACT_DIR}" "${PORTABLE_STAGING}" "${OFFLINE_STAGING}"
+# The offline portable package is a Windows-only artifact; macOS ships the
+# installer pkg and the regular portable zip.
+rm -rf "${ARTIFACT_DIR}" "${PORTABLE_STAGING}" "${DIST_DIR}/${RELEASE}-offline-portable"
+mkdir -p "${ARTIFACT_DIR}" "${PORTABLE_STAGING}"
 
 xattr -cr "${APP_DIR}" 2>/dev/null || true
 
@@ -64,7 +65,6 @@ Built: ${BUILT_UTC}
 Artifacts:
 - ${RELEASE}-installer.pkg
 - ${RELEASE}-portable.zip
-- ${RELEASE}-offline-portable.zip
 
 SHA256 files are generated beside each installer and portable zip.
 
@@ -89,18 +89,6 @@ Contents:
 This portable app bundle is self-contained for offline runtime use. Release distribution should be signed and notarized after hardware verification.
 EOF
 ditto --norsrc -c -k --keepParent "${PORTABLE_STAGING}" "${ARTIFACT_DIR}/${RELEASE}-portable.zip"
-
-ditto --norsrc "${APP_DIR}" "${OFFLINE_STAGING}/${APP_NAME}.app"
-cp "${ROOT}/../QUICKSTART.md" "${OFFLINE_STAGING}/quickstart.txt"
-cp "${LOCAL_RELEASE}" "${OFFLINE_STAGING}/local-release.txt"
-cat > "${OFFLINE_STAGING}/offline-readme.txt" <<EOF
-FindBT macOS Offline Portable
-=============================
-
-This package is intended for offline machines. It contains the built ${APP_NAME}.app and operator notes.
-No network access is required to run the app.
-EOF
-ditto --norsrc -c -k --keepParent "${OFFLINE_STAGING}" "${ARTIFACT_DIR}/${RELEASE}-offline-portable.zip"
 
 for artifact in "${ARTIFACT_DIR}"/*; do
   if [[ -f "${artifact}" && "${artifact}" != *.sha256.txt && "$(basename "${artifact}")" != "local-release.txt" ]]; then

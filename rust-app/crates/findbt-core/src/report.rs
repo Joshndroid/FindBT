@@ -87,8 +87,13 @@ pub fn generate_html(session: &CaptureSession) -> String {
 
     let meta_items = [
         ("Scan date", session.metadata.date.to_string()),
-        ("Name", session.metadata.name.clone()),
-        ("Section", session.metadata.section.clone()),
+        ("Scan reference", session.metadata.name.clone()),
+        (
+            "Target device reference",
+            session.metadata.section.clone(),
+        ),
+        ("User", session.metadata.user.clone()),
+        ("Computer name", session.host.computer_name.clone()),
         ("Tagged local radio", tagged_local_radio),
         (
             "Host adapter",
@@ -451,10 +456,12 @@ mod tests {
                 date: NaiveDate::from_ymd_opt(2026, 7, 3).unwrap(),
                 name: "Alice & Bob".to_string(),
                 section: "Lab <A>".to_string(),
+                user: "Operator <One>".to_string(),
             },
             HostAdapterInfo {
                 name: "Host Radio".to_string(),
                 address: "AA:BB:CC:DD:EE:FF".to_string(),
+                computer_name: "LAB-PC-01".to_string(),
             },
         );
         session.record(RawObservation {

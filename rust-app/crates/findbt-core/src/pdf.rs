@@ -230,8 +230,10 @@ fn build_pages(session: &CaptureSession) -> Vec<String> {
     for line in [
         format!("Generated: {}", format_timestamp(generated_at)),
         format!("Scan date: {}", session.metadata.date),
-        format!("Name: {}", session.metadata.name),
-        format!("Section: {}", session.metadata.section),
+        format!("Scan reference: {}", session.metadata.name),
+        format!("Target device reference: {}", session.metadata.section),
+        format!("User: {}", session.metadata.user),
+        format!("Computer name: {}", session.host.computer_name),
         format!("Tagged local radio: {tagged_display}"),
         format!(
             "Host adapter: {} {}",
@@ -589,10 +591,12 @@ mod tests {
                 date: NaiveDate::from_ymd_opt(2026, 7, 3).unwrap(),
                 name: "Alice & Bob (Case 12)".to_string(),
                 section: "Lab \\ Section <A>".to_string(),
+                user: "Operator One".to_string(),
             },
             HostAdapterInfo {
                 name: "Host Radio".to_string(),
                 address: "AA:BB:CC:DD:EE:FF".to_string(),
+                computer_name: "LAB-PC-01".to_string(),
             },
         );
         session.record(RawObservation {

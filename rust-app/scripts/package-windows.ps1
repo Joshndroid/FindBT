@@ -1,9 +1,18 @@
 param(
     [ValidateSet("Debug", "Release")]
     [string]$Configuration = "Release",
+    # Which artifact set to produce. "Installer" builds the portable zip and
+    # the MSI. "OfflinePortable" builds only the offline portable zip, so CI
+    # can build it on a separate, clearly isolated runner. "All" is the local
+    # developer default.
+    [ValidateSet("All", "Installer", "OfflinePortable")]
+    [string]$Artifact = "All",
     [switch]$RequireInstaller,
     [switch]$RequireDefender
 )
+
+$doInstaller = $Artifact -in @("All", "Installer")
+$doOffline = $Artifact -in @("All", "OfflinePortable")
 
 $ErrorActionPreference = "Stop"
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
@@ -55,9 +64,9 @@ try {
     }
 
     $portableExe = Join-Path $portableDir "FindBT.exe"
-    Copy-Item -Path $builtExe -Destination $portableExe
-    Copy-Item -Path $iconPath -Destination (Join-Path $portableDir "FindBT.ico")
-    Copy-Item -Path (Join-Path $repoRoot "QUICKSTART.md") -Destination (Join-Path $portableDir "quickstart.txt")
+    $portableZip = Join-Path $artifactsDir "$releaseName-portable.zip"
+    $offlineZip = Join-Path $artifactsDir "$releaseName-offline-portable.zip"
+    $msiPath = Join-Path $artifactsDir "$releaseName-installer.msi"
     $builtUtc = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss 'UTC'")
     @"
 FindBT Local Release
@@ -79,8 +88,13 @@ Checks:
 - cargo build -p findbt-app
 - Microsoft Defender scan is run when Microsoft Defender is available.
 "@ | Set-Content -Path $localReleasePath -Encoding ASCII
-    Copy-Item -Path $localReleasePath -Destination (Join-Path $portableDir "local-release.txt")
-    @"
+
+    if ($doInstaller) {
+        Copy-Item -Path $builtExe -Destination $portableExe
+        Copy-Item -Path $iconPath -Destination (Join-Path $portableDir "FindBT.ico")
+        Copy-Item -Path (Join-Path $repoRoot "QUICKSTART.md") -Destination (Join-Path $portableDir "quickstart.txt")
+        Copy-Item -Path $localReleasePath -Destination (Join-Path $portableDir "local-release.txt")
+        @"
 FindBT Windows Portable
 =======================
 
@@ -95,17 +109,38 @@ Contents:
 This portable build is intended to run offline from the extracted folder.
 "@ | Add-Content -Path (Join-Path $portableDir "local-release.txt") -Encoding ASCII
 
-    $portableZip = Join-Path $artifactsDir "$releaseName-portable.zip"
-    if (Test-Path $portableZip) {
-        Remove-Item -Force $portableZip
-    }
-    Compress-Archive -Path (Join-Path $portableDir "*") -DestinationPath $portableZip -CompressionLevel Optimal
+        if (Test-Path $portableZip) {
+            Remove-Item -Force $portableZip
+        }
+        Compress-Archive -Path (Join-Path $portableDir "*") -DestinationPath $portableZip -CompressionLevel Optimal
 
-    Copy-Item -Path $portableExe -Destination (Join-Path $offlineDir "FindBT.exe")
-    Copy-Item -Path $iconPath -Destination (Join-Path $offlineDir "FindBT.ico")
-    Copy-Item -Path (Join-Path $repoRoot "QUICKSTART.md") -Destination (Join-Path $offlineDir "quickstart.txt")
-    Copy-Item -Path $localReleasePath -Destination (Join-Path $offlineDir "local-release.txt")
-    @"
+        $wix = Get-Command wix.exe -ErrorAction SilentlyContinue
+        if ($wix) {
+            if (Test-Path $msiPath) {
+                Remove-Item -Force $msiPath
+            }
+            & $wix.Source build (Join-Path $root "windows\FindBT.wxs") `
+                -d "SourceDir=$portableDir" `
+                -d "Version=$version" `
+                -o $msiPath
+            if ($LASTEXITCODE -ne 0) {
+                throw "WiX MSI build failed with exit code $LASTEXITCODE."
+            }
+        }
+        elseif ($RequireInstaller) {
+            throw "WiX Toolset was not found. Install WiX v4 locally, then rerun this script to produce the MSI installer."
+        }
+        else {
+            Write-Warning "WiX Toolset was not found, so the MSI installer was skipped. Portable artifacts were still created."
+        }
+    }
+
+    if ($doOffline) {
+        Copy-Item -Path $builtExe -Destination (Join-Path $offlineDir "FindBT.exe")
+        Copy-Item -Path $iconPath -Destination (Join-Path $offlineDir "FindBT.ico")
+        Copy-Item -Path (Join-Path $repoRoot "QUICKSTART.md") -Destination (Join-Path $offlineDir "quickstart.txt")
+        Copy-Item -Path $localReleasePath -Destination (Join-Path $offlineDir "local-release.txt")
+        @"
 FindBT Windows Offline Portable
 ===============================
 
@@ -115,36 +150,21 @@ Configuration: $Configuration
 This package is intended for offline machines. No network access is required to run FindBT from the extracted folder.
 "@ | Set-Content -Path (Join-Path $offlineDir "offline-readme.txt") -Encoding ASCII
 
-    $offlineZip = Join-Path $artifactsDir "$releaseName-offline-portable.zip"
-    if (Test-Path $offlineZip) {
-        Remove-Item -Force $offlineZip
+        if (Test-Path $offlineZip) {
+            Remove-Item -Force $offlineZip
+        }
+        Compress-Archive -Path (Join-Path $offlineDir "*") -DestinationPath $offlineZip -CompressionLevel Optimal
     }
-    Compress-Archive -Path (Join-Path $offlineDir "*") -DestinationPath $offlineZip -CompressionLevel Optimal
 
-    $msiPath = Join-Path $artifactsDir "$releaseName-installer.msi"
-    $wix = Get-Command wix.exe -ErrorAction SilentlyContinue
-    if ($wix) {
+    $scanTargets = @($builtExe)
+    if ($doInstaller) {
+        $scanTargets += $portableZip
         if (Test-Path $msiPath) {
-            Remove-Item -Force $msiPath
-        }
-        & $wix.Source build (Join-Path $root "windows\FindBT.wxs") `
-            -d "SourceDir=$portableDir" `
-            -d "Version=$version" `
-            -o $msiPath
-        if ($LASTEXITCODE -ne 0) {
-            throw "WiX MSI build failed with exit code $LASTEXITCODE."
+            $scanTargets += $msiPath
         }
     }
-    elseif ($RequireInstaller) {
-        throw "WiX Toolset was not found. Install WiX v4 locally, then rerun this script to produce the MSI installer."
-    }
-    else {
-        Write-Warning "WiX Toolset was not found, so the MSI installer was skipped. Portable and offline portable artifacts were still created."
-    }
-
-    $scanTargets = @($portableExe, $portableZip, $offlineZip)
-    if (Test-Path $msiPath) {
-        $scanTargets += $msiPath
+    if ($doOffline) {
+        $scanTargets += $offlineZip
     }
     & (Join-Path $repoRoot "scripts\invoke-windows-defender-scan.ps1") -Path $scanTargets -Required:$RequireDefender
 

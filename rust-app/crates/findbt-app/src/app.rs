@@ -9,6 +9,7 @@ use findbt_core::{
 
 use crate::{
     main_screen::{KindFilter, MainScreenAction, MainScreenState},
+    settings::{AppSettings, ThemeSetting},
     theme::{AccentColor, Theme},
     wizard::{WizardAction, WizardState},
 };
@@ -33,6 +34,7 @@ pub struct FindBtApp {
     kind_filter: KindFilter,
     report_format: ReportFormat,
     show_settings: bool,
+    settings: AppSettings,
 }
 
 enum Screen {
@@ -57,7 +59,22 @@ impl FindBtApp {
             kind_filter: KindFilter::All,
             report_format: ReportFormat::Html,
             show_settings: false,
+            settings: AppSettings::load(),
         }
+    }
+
+    /// Push the persisted theme preference into egui and resolve the palette
+    /// for this frame. With `System`, egui tracks OS light/dark changes live.
+    fn apply_theme(&mut self, ctx: &egui::Context) {
+        ctx.set_theme(match self.settings.theme {
+            ThemeSetting::System => egui::ThemePreference::System,
+            ThemeSetting::Light => egui::ThemePreference::Light,
+            ThemeSetting::Dark => egui::ThemePreference::Dark,
+        });
+        self.theme = match ctx.theme() {
+            egui::Theme::Dark => Theme::dark(AccentColor::Blue),
+            egui::Theme::Light => Theme::light(AccentColor::Blue),
+        };
     }
 
     fn begin_session(&mut self, metadata: CaseMetadata, host: HostAdapterInfo) {
@@ -157,6 +174,26 @@ impl FindBtApp {
             .resizable(false)
             .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
             .show(ctx, |ui| {
+                ui.label(egui::RichText::new("Appearance").strong());
+                ui.add_space(6.0);
+                let mut theme_changed = false;
+                theme_changed |= ui
+                    .radio_value(
+                        &mut self.settings.theme,
+                        ThemeSetting::System,
+                        "Follow system theme",
+                    )
+                    .changed();
+                theme_changed |= ui
+                    .radio_value(&mut self.settings.theme, ThemeSetting::Light, "Light")
+                    .changed();
+                theme_changed |= ui
+                    .radio_value(&mut self.settings.theme, ThemeSetting::Dark, "Dark")
+                    .changed();
+                if theme_changed {
+                    self.settings.save();
+                }
+                ui.add_space(12.0);
                 ui.label(egui::RichText::new("Report generation").strong());
                 ui.add_space(6.0);
                 ui.radio_value(
@@ -210,6 +247,8 @@ impl eframe::App for FindBtApp {
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
         self.drain_observations();
         ui.request_repaint_after(std::time::Duration::from_millis(100));
+        let ctx = ui.ctx().clone();
+        self.apply_theme(&ctx);
 
         match &mut self.screen {
             Screen::Wizard(state) => match state.ui(ui, self.theme) {

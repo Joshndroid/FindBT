@@ -2,7 +2,7 @@ use findbt_core::{CaptureSession, DeviceKind, DeviceRecord, ScanPhase};
 
 use crate::{
     theme::{signal_color, Theme},
-    wizard::logo,
+    titlebar::{titlebar, TitlebarAction},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -43,7 +43,11 @@ pub fn show(
     egui::Panel::top("titlebar")
         .exact_size(40.0)
         .frame(egui::Frame::new().fill(state.theme.bg_elevated))
-        .show(ui, |ui| titlebar(ui, state.theme, &mut action));
+        .show(ui, |ui| {
+            if let TitlebarAction::OpenSettings = titlebar(ui, state.theme, true) {
+                action = Some(MainScreenAction::OpenSettings);
+            }
+        });
 
     egui::Panel::left("sidebar")
         .exact_size(260.0)
@@ -65,49 +69,6 @@ pub fn show(
         .show(ui, |ui| main_panel(ui, session, state, &mut action));
 
     action
-}
-
-fn titlebar(ui: &mut egui::Ui, theme: Theme, action: &mut Option<MainScreenAction>) {
-    // Register the drag area first so the buttons drawn afterwards stay on
-    // top and receive their clicks. Dragging only starts on actual drag
-    // motion, never on a plain press, so button clicks are not swallowed by
-    // the OS window-move loop.
-    let drag_response = ui.interact(
-        ui.max_rect(),
-        egui::Id::new("titlebar-drag"),
-        egui::Sense::click_and_drag(),
-    );
-    if drag_response.drag_started_by(egui::PointerButton::Primary) {
-        ui.ctx().send_viewport_cmd(egui::ViewportCommand::StartDrag);
-    }
-
-    ui.horizontal(|ui| {
-        ui.add_space(10.0);
-        logo(ui, theme, 24.0);
-        ui.label(
-            egui::RichText::new("Bluetooth Capture")
-                .color(theme.text)
-                .strong(),
-        );
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if ui.button("x").clicked() {
-                ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
-            }
-            if ui.button("□").clicked() {
-                let maximized = ui.input(|input| input.viewport().maximized.unwrap_or(false));
-                ui.ctx()
-                    .send_viewport_cmd(egui::ViewportCommand::Maximized(!maximized));
-            }
-            if ui.button("-").clicked() {
-                ui.ctx()
-                    .send_viewport_cmd(egui::ViewportCommand::Minimized(true));
-            }
-            ui.add_space(6.0);
-            if ui.button("Settings").clicked() {
-                *action = Some(MainScreenAction::OpenSettings);
-            }
-        });
-    });
 }
 
 fn sidebar(

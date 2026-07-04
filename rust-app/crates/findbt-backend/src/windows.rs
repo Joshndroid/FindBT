@@ -80,7 +80,11 @@ impl BluetoothBackend for WindowsBluetoothBackend {
             .map(|value| value.to_string())
             .unwrap_or_else(|_| "Windows Bluetooth Adapter".to_string());
 
-        Some(HostAdapterInfo { name, address })
+        Some(HostAdapterInfo {
+            name,
+            address,
+            ..Default::default()
+        })
     }
 
     fn start(&mut self, tx: Sender<RawObservation>, phase: ScanPhase) -> Result<(), BackendError> {

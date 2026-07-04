@@ -86,8 +86,8 @@ jobs:
           path: rust-app/dist/macos/artifacts/*
           if-no-files-found: error
 
-  windows:
-    name: Build Windows artifacts
+  windows-installer:
+    name: Build Windows installer
     runs-on: windows-latest
     steps:
       - name: Harden runner
@@ -103,21 +103,49 @@ jobs:
       - name: Install WiX v4
         run: dotnet tool install --global wix --version 4.*
 
-      - name: Package Windows
+      - name: Package Windows installer
         shell: pwsh
-        run: ./rust-app/scripts/package-windows.ps1 -Configuration Release -RequireInstaller -RequireDefender
+        run: ./rust-app/scripts/package-windows.ps1 -Configuration Release -Artifact Installer -RequireInstaller -RequireDefender
 
-      - name: Upload Windows artifacts
+      - name: Upload Windows installer artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: findbt-windows
           path: rust-app/dist/windows/artifacts/*
           if-no-files-found: error
 
+  # The offline portable zip is built on its own runner, fully separate from
+  # the installer build, so it can be audited and distributed as a clearly
+  # isolated artifact.
+  windows-offline-portable:
+    name: Build Windows offline portable
+    runs-on: windows-latest
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+
+      - name: Package Windows offline portable
+        shell: pwsh
+        run: ./rust-app/scripts/package-windows.ps1 -Configuration Release -Artifact OfflinePortable -RequireDefender
+
+      - name: Upload Windows offline portable artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: findbt-windows-offline-portable
+          path: rust-app/dist/windows/artifacts/*
+          if-no-files-found: error
+
   publish:
     name: Publish or dry run
     runs-on: ubuntu-latest
-    needs: [macos, windows]
+    needs: [macos, windows-installer, windows-offline-portable]
     permissions:
       contents: write
     steps:

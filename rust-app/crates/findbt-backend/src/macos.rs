@@ -291,7 +291,11 @@ fn host_controller_info() -> Option<HostAdapterInfo> {
     let address = unsafe { controller.addressAsString() }
         .map(|value| normalize_address(&value.to_string()))
         .unwrap_or_default();
-    Some(HostAdapterInfo { name, address })
+    Some(HostAdapterInfo {
+        name,
+        address,
+        ..Default::default()
+    })
 }
 
 fn emit_paired_classic_devices(tx: &Sender<RawObservation>, phase: ScanPhase) {
@@ -421,7 +425,11 @@ fn system_profiler_host_info() -> Option<HostAdapterInfo> {
         .map(|value| normalize_address(&value))
         .unwrap_or_default();
 
-    Some(HostAdapterInfo { name, address })
+    Some(HostAdapterInfo {
+        name,
+        address,
+        ..Default::default()
+    })
 }
 
 fn find_object_with_key<'a>(value: &'a Value, key: &str) -> Option<&'a Value> {

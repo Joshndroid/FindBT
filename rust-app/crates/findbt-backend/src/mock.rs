@@ -38,6 +38,7 @@ impl BluetoothBackend for MockBluetoothBackend {
         Some(HostAdapterInfo {
             name: "Mock Bluetooth Adapter".to_string(),
             address: "02:00:5E:00:53:01".to_string(),
+            ..Default::default()
         })
     }
 
