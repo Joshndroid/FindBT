@@ -1,3 +1,8 @@
+// Hide the console window on Windows in release builds. Without this the
+// exe is a console-subsystem binary and Windows opens a terminal alongside
+// the GUI. Debug builds keep the console so dev logs stay visible.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 mod app;
 mod main_screen;
 mod theme;
