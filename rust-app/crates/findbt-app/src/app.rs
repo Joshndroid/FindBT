@@ -36,6 +36,7 @@ pub struct FindBtApp {
     report_format: ReportFormat,
     route: MainRoute,
     settings_section: SettingsSection,
+    report_error_open: bool,
     settings: AppSettings,
     /// The real bundled app icon, uploaded to the GPU once at startup and
     /// reused everywhere the icon is shown (titlebar, wizard) so it never
@@ -143,6 +144,7 @@ impl FindBtApp {
             report_format: ReportFormat::Html,
             route: MainRoute::Capture,
             settings_section: SettingsSection::Appearance,
+            report_error_open: false,
             settings: AppSettings::load(),
             app_icon: load_app_icon_texture(ctx),
         }
@@ -249,18 +251,66 @@ impl FindBtApp {
         }
     }
 
+    fn report_ready(&self) -> bool {
+        matches!(
+            &self.screen,
+            Screen::Main(session) if session.phase_run_for(ScanPhase::Verification).is_some()
+        )
+    }
+
+    fn report_not_ready_popup(&mut self, ctx: &egui::Context) {
+        if !self.report_error_open {
+            return;
+        }
+        let mut open = self.report_error_open;
+        let mut close_requested = false;
+        egui::Window::new("Report unavailable")
+            .open(&mut open)
+            .collapsible(false)
+            .resizable(false)
+            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+            .show(ctx, |ui| {
+                ui.set_width(320.0);
+                ui.label(
+                    egui::RichText::new(
+                        "All three scan phases must be completed before a report can be generated.",
+                    )
+                    .color(self.theme.text),
+                );
+                ui.add_space(12.0);
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if crate::widgets::secondary_button(ui, self.theme, "OK").clicked() {
+                        close_requested = true;
+                    }
+                });
+            });
+        if close_requested {
+            open = false;
+        }
+        self.report_error_open = open;
+    }
+
     fn apply_action(&mut self, action: MainScreenAction) {
         match action {
             MainScreenAction::Start(phase) => self.start_scan(phase),
             MainScreenAction::Stop => self.stop_scan("Stopped by operator"),
             MainScreenAction::Rescan(phase) => self.start_scan(phase),
             MainScreenAction::SelectPhase(phase) => self.active_phase = phase,
-            MainScreenAction::GenerateReport => self.save_report(),
+            MainScreenAction::GenerateReport => {
+                if self.report_ready() {
+                    self.save_report();
+                } else {
+                    self.report_error_open = true;
+                    self.status =
+                        "Complete all three scan phases before generating a report.".to_string();
+                }
+            }
             MainScreenAction::ResetCapture => {
                 self.backend.stop();
                 self.receiver = None;
                 self.scanning_phase = None;
                 self.current_run = None;
+                self.report_error_open = false;
                 if let Screen::Main(session) = &mut self.screen {
                     session.reset_capture();
                 }
@@ -329,5 +379,8 @@ impl eframe::App for FindBtApp {
                 }
             },
         }
+
+        let ctx = ui.ctx().clone();
+        self.report_not_ready_popup(&ctx);
     }
 }

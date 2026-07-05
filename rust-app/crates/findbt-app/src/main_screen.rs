@@ -99,16 +99,22 @@ fn sidebar(
     });
 
     ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
-        ui.add_space(20.0);
-        ui.horizontal(|ui| {
-            ui.add_space(18.0);
-            ui.vertical(|ui| {
-                ui.set_width(224.0);
-                if widgets::sidebar_button(ui, theme, "Settings").clicked() {
-                    *action = Some(MainScreenAction::OpenSettings);
-                }
-            });
-        });
+        ui.add_space(32.0);
+        sidebar_footer_button(
+            ui,
+            theme,
+            "Settings",
+            MainScreenAction::OpenSettings,
+            action,
+        );
+        ui.add_space(8.0);
+        sidebar_footer_button(
+            ui,
+            theme,
+            "Generate Report",
+            MainScreenAction::GenerateReport,
+            action,
+        );
     });
 }
 
@@ -143,6 +149,18 @@ fn sidebar_content(
                 .size(11.0),
         );
     });
+    ui.add_space(18.0);
+    widgets::caption(ui, theme, "Scan action");
+    ui.add_space(8.0);
+    scan_action_button(ui, session, theme, active_phase, scanning_phase, action);
+    ui.add_space(8.0);
+    if widgets::sidebar_button(ui, theme, "Reset capture").clicked() {
+        *action = Some(MainScreenAction::ResetCapture);
+    }
+    if scanning_phase == Some(active_phase) {
+        ui.add_space(8.0);
+        ui.colored_label(theme.accent_main(), "scanning");
+    }
     ui.add_space(18.0);
     widgets::caption(ui, theme, "Phases");
     ui.add_space(8.0);
@@ -184,10 +202,24 @@ fn sidebar_content(
         }
         ui.add_space(6.0);
     }
-    ui.add_space(8.0);
-    if widgets::sidebar_button(ui, theme, "Reset capture").clicked() {
-        *action = Some(MainScreenAction::ResetCapture);
-    }
+}
+
+fn sidebar_footer_button(
+    ui: &mut egui::Ui,
+    theme: Theme,
+    label: &str,
+    button_action: MainScreenAction,
+    action: &mut Option<MainScreenAction>,
+) {
+    ui.horizontal(|ui| {
+        ui.add_space(18.0);
+        ui.vertical(|ui| {
+            ui.set_width(224.0);
+            if widgets::sidebar_button(ui, theme, label).clicked() {
+                *action = Some(button_action);
+            }
+        });
+    });
 }
 
 fn main_panel(
@@ -198,7 +230,6 @@ fn main_panel(
 ) {
     let theme = state.theme;
     let active_phase = state.active_phase;
-    let scanning_phase = state.scanning_phase;
     let filter_text = state.filter_text;
     let kind_filter = state.kind_filter;
 
@@ -208,7 +239,7 @@ fn main_panel(
         ui.add_space(24.0);
         ui.vertical(|ui| {
             ui.set_width((ui.available_width() - 24.0).max(0.0));
-            phase_header(ui, session, theme, active_phase, scanning_phase, action);
+            page_heading(ui, theme, active_phase);
             ui.add_space(18.0);
             device_registry(
                 ui,
@@ -223,7 +254,21 @@ fn main_panel(
     });
 }
 
-fn phase_header(
+fn page_heading(ui: &mut egui::Ui, theme: Theme, active_phase: ScanPhase) {
+    ui.heading(
+        egui::RichText::new(active_phase.tab_title())
+            .color(theme.text)
+            .size(22.0),
+    );
+    ui.add_space(4.0);
+    ui.label(
+        egui::RichText::new(active_phase.description())
+            .color(theme.text_muted)
+            .size(12.0),
+    );
+}
+
+fn scan_action_button(
     ui: &mut egui::Ui,
     session: &CaptureSession,
     theme: Theme,
@@ -231,54 +276,22 @@ fn phase_header(
     scanning_phase: Option<ScanPhase>,
     action: &mut Option<MainScreenAction>,
 ) {
-    panel(ui, theme, |ui| {
-        ui.set_min_width(ui.available_width());
-        ui.horizontal(|ui| {
-            ui.vertical(|ui| {
-                ui.heading(
-                    egui::RichText::new(active_phase.tab_title())
-                        .color(theme.text)
-                        .size(20.0),
-                );
-                ui.add_space(4.0);
-                ui.label(
-                    egui::RichText::new(active_phase.description())
-                        .color(theme.text_muted)
-                        .size(12.0),
-                );
-            });
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if widgets::secondary_button(ui, theme, "Generate Report").clicked() {
-                    *action = Some(MainScreenAction::GenerateReport);
-                }
-            });
+    let button_text = if scanning_phase == Some(active_phase) {
+        "Stop Scan"
+    } else if session.phase_run_for(active_phase).is_some() {
+        "Rescan"
+    } else {
+        "Start Scan"
+    };
+    if widgets::sidebar_button(ui, theme, button_text).clicked() {
+        *action = Some(if scanning_phase == Some(active_phase) {
+            MainScreenAction::Stop
+        } else if session.phase_run_for(active_phase).is_some() {
+            MainScreenAction::Rescan(active_phase)
+        } else {
+            MainScreenAction::Start(active_phase)
         });
-
-        ui.add_space(16.0);
-        ui.horizontal(|ui| {
-            let button_text = if scanning_phase == Some(active_phase) {
-                "Stop Scan"
-            } else if session.phase_run_for(active_phase).is_some() {
-                "Rescan"
-            } else {
-                "Start Scan"
-            };
-            let clicked = widgets::primary_button(ui, theme, button_text).clicked();
-            if clicked {
-                *action = Some(if scanning_phase == Some(active_phase) {
-                    MainScreenAction::Stop
-                } else if session.phase_run_for(active_phase).is_some() {
-                    MainScreenAction::Rescan(active_phase)
-                } else {
-                    MainScreenAction::Start(active_phase)
-                });
-            }
-            if scanning_phase == Some(active_phase) {
-                ui.add_space(10.0);
-                ui.colored_label(theme.accent_main(), "scanning");
-            }
-        });
-    });
+    }
 }
 
 fn device_registry(

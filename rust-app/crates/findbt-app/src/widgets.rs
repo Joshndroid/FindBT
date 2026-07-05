@@ -1,8 +1,8 @@
 //! Shared, theme-driven building blocks used by every screen (wizard,
 //! titlebar, main screen, settings). Centralizing them here is what keeps
-//! the app's look consistent end to end: one accent-filled "primary" button
-//! style, one neutral "secondary" button style, one boxed input style, one
-//! muted caption style, one card container style.
+//! the app's look consistent end to end: one accent-filled button style, one
+//! neutral "secondary" button style, one boxed input style, one muted caption
+//! style, one card container style.
 //!
 //! The overall aesthetic mixes two references on purpose: containers
 //! (`card_frame`) use the generous, soft-rounded corners of a macOS
@@ -13,14 +13,7 @@
 
 use crate::theme::{hex, Theme};
 
-/// The strong call-to-action button: solid accent fill, light text, tight
-/// control-radius corners. There should be at most one of these visible per
-/// screen (e.g. "Begin Scan", "Generate Report").
-pub fn primary_button(ui: &mut egui::Ui, theme: Theme, text: &str) -> egui::Response {
-    primary_button_enabled(ui, theme, text, true)
-}
-
-/// Same as [`primary_button`], but can be disabled (e.g. while required
+/// Strong call-to-action button that can be disabled (e.g. while required
 /// fields are incomplete). Disabled buttons keep their shape and position so
 /// the layout does not jump once they become active.
 pub fn primary_button_enabled(
