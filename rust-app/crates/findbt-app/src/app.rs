@@ -10,6 +10,7 @@ use findbt_core::{
 use crate::{
     main_screen::{KindFilter, MainScreenAction, MainScreenState},
     settings::{AppSettings, ThemeSetting},
+    settings_screen::{SettingsScreenAction, SettingsScreenState, SettingsSection},
     theme::{AccentColor, Theme},
     wizard::{WizardAction, WizardState},
 };
@@ -33,7 +34,8 @@ pub struct FindBtApp {
     filter_text: String,
     kind_filter: KindFilter,
     report_format: ReportFormat,
-    show_settings: bool,
+    route: MainRoute,
+    settings_section: SettingsSection,
     settings: AppSettings,
     /// The real bundled app icon, uploaded to the GPU once at startup and
     /// reused everywhere the icon is shown (titlebar, wizard) so it never
@@ -68,7 +70,12 @@ fn load_app_icon_texture(ctx: &egui::Context) -> egui::TextureHandle {
 /// (each output pixel is the average of the corresponding `factor x factor`
 /// block of input pixels). Implemented by hand rather than pulling in an
 /// image-resizing crate, since this is the only place the app needs it.
-fn downsample_rgba_box(rgba: &[u8], width: usize, height: usize, factor: usize) -> (Vec<u8>, usize, usize) {
+fn downsample_rgba_box(
+    rgba: &[u8],
+    width: usize,
+    height: usize,
+    factor: usize,
+) -> (Vec<u8>, usize, usize) {
     let factor = factor.max(1);
     if factor == 1 {
         return (rgba.to_vec(), width, height);
@@ -112,6 +119,12 @@ enum Screen {
     Main(CaptureSession),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MainRoute {
+    Capture,
+    Settings,
+}
+
 impl FindBtApp {
     pub fn new(ctx: &egui::Context) -> Self {
         let backend = DefaultBluetoothBackend::new();
@@ -128,7 +141,8 @@ impl FindBtApp {
             filter_text: String::new(),
             kind_filter: KindFilter::All,
             report_format: ReportFormat::Html,
-            show_settings: false,
+            route: MainRoute::Capture,
+            settings_section: SettingsSection::Appearance,
             settings: AppSettings::load(),
             app_icon: load_app_icon_texture(ctx),
         }
@@ -153,6 +167,7 @@ impl FindBtApp {
         let local = normalize_address(&session.host.address);
         session.registry.apply_local_radio_tag(&local);
         self.screen = Screen::Main(session);
+        self.route = MainRoute::Capture;
         self.active_phase = ScanPhase::Baseline;
         self.status = "Session ready. Start the baseline scan.".to_string();
     }
@@ -234,61 +249,6 @@ impl FindBtApp {
         }
     }
 
-    fn settings_window(&mut self, ctx: &egui::Context) {
-        if !self.show_settings {
-            return;
-        }
-        let mut open = self.show_settings;
-        egui::Window::new("Settings")
-            .open(&mut open)
-            .collapsible(false)
-            .resizable(false)
-            .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-            .show(ctx, |ui| {
-                ui.label(egui::RichText::new("Appearance").strong());
-                ui.add_space(6.0);
-                let mut theme_changed = false;
-                theme_changed |= ui
-                    .radio_value(
-                        &mut self.settings.theme,
-                        ThemeSetting::System,
-                        "Follow system theme",
-                    )
-                    .changed();
-                theme_changed |= ui
-                    .radio_value(&mut self.settings.theme, ThemeSetting::Light, "Light")
-                    .changed();
-                theme_changed |= ui
-                    .radio_value(&mut self.settings.theme, ThemeSetting::Dark, "Dark")
-                    .changed();
-                if theme_changed {
-                    self.settings.save();
-                }
-                ui.add_space(12.0);
-                ui.label(egui::RichText::new("Report generation").strong());
-                ui.add_space(6.0);
-                ui.radio_value(
-                    &mut self.report_format,
-                    ReportFormat::Html,
-                    "HTML export (.html) - standalone web page, opens in any browser",
-                );
-                ui.radio_value(
-                    &mut self.report_format,
-                    ReportFormat::Pdf,
-                    "PDF export (.pdf) - fixed-layout printable document",
-                );
-                ui.add_space(8.0);
-                ui.label(
-                    egui::RichText::new(
-                        "Both formats contain the same phase runs, phase summary, device \
-                         registry, and raw audit log.",
-                    )
-                    .size(11.0),
-                );
-            });
-        self.show_settings = open;
-    }
-
     fn apply_action(&mut self, action: MainScreenAction) {
         match action {
             MainScreenAction::Start(phase) => self.start_scan(phase),
@@ -309,7 +269,14 @@ impl FindBtApp {
             }
             MainScreenAction::SetKindFilter(kind) => self.kind_filter = kind,
             MainScreenAction::SetFilterText(text) => self.filter_text = text,
-            MainScreenAction::OpenSettings => self.show_settings = true,
+            MainScreenAction::OpenSettings => self.route = MainRoute::Settings,
+        }
+    }
+
+    fn apply_settings_action(&mut self, action: SettingsScreenAction) {
+        match action {
+            SettingsScreenAction::BackToCapture => self.route = MainRoute::Capture,
+            SettingsScreenAction::SelectSection(section) => self.settings_section = section,
         }
     }
 }
@@ -326,27 +293,41 @@ impl eframe::App for FindBtApp {
                 WizardAction::None => {}
                 WizardAction::Begin { metadata, host } => self.begin_session(metadata, host),
             },
-            Screen::Main(session) => {
-                let action = crate::main_screen::show(
-                    ui,
-                    session,
-                    MainScreenState {
-                        theme: self.theme,
-                        active_phase: self.active_phase,
-                        scanning_phase: self.scanning_phase,
-                        status: &self.status,
-                        filter_text: &self.filter_text,
-                        kind_filter: self.kind_filter,
-                        app_icon: &self.app_icon,
-                    },
-                );
-                if let Some(action) = action {
-                    self.apply_action(action);
+            Screen::Main(session) => match self.route {
+                MainRoute::Capture => {
+                    let action = crate::main_screen::show(
+                        ui,
+                        session,
+                        MainScreenState {
+                            theme: self.theme,
+                            active_phase: self.active_phase,
+                            scanning_phase: self.scanning_phase,
+                            status: &self.status,
+                            filter_text: &self.filter_text,
+                            kind_filter: self.kind_filter,
+                            app_icon: &self.app_icon,
+                        },
+                    );
+                    if let Some(action) = action {
+                        self.apply_action(action);
+                    }
                 }
-            }
+                MainRoute::Settings => {
+                    let action = crate::settings_screen::show(
+                        ui,
+                        SettingsScreenState {
+                            theme: self.theme,
+                            active_section: self.settings_section,
+                            settings: &mut self.settings,
+                            report_format: &mut self.report_format,
+                            app_icon: &self.app_icon,
+                        },
+                    );
+                    if let Some(action) = action {
+                        self.apply_settings_action(action);
+                    }
+                }
+            },
         }
-
-        let ctx = ui.ctx().clone();
-        self.settings_window(&ctx);
     }
 }

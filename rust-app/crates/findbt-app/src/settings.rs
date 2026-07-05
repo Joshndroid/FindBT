@@ -40,6 +40,7 @@ pub enum ThemeSetting {
 }
 
 impl ThemeSetting {
+    #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
     fn as_str(self) -> &'static str {
         match self {
             ThemeSetting::System => "system",

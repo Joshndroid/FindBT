@@ -5,6 +5,7 @@
 mod app;
 mod main_screen;
 mod settings;
+mod settings_screen;
 mod theme;
 mod titlebar;
 mod widgets;
