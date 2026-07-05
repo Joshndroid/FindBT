@@ -128,23 +128,29 @@ fn settings_content(
 ) {
     egui::ScrollArea::vertical().show(ui, |ui| {
         ui.add_space(22.0);
-        ui.heading(
-            egui::RichText::new("App settings")
-                .color(theme.text)
-                .size(22.0),
-        );
-        ui.label(
-            egui::RichText::new("Changes apply immediately.")
-                .color(theme.text_muted)
-                .size(12.0),
-        );
+        ui.horizontal(|ui| {
+            ui.add_space(24.0);
+            ui.vertical(|ui| {
+                ui.set_width((ui.available_width() - 24.0).max(0.0));
+                ui.heading(
+                    egui::RichText::new("App settings")
+                        .color(theme.text)
+                        .size(22.0),
+                );
+                ui.label(
+                    egui::RichText::new("Changes apply immediately.")
+                        .color(theme.text_muted)
+                        .size(12.0),
+                );
 
-        ui.add_space(22.0);
-        match active_section {
-            SettingsSection::Appearance => appearance_section(ui, theme, settings),
-            SettingsSection::ReportGeneration => report_section(ui, theme, report_format),
-        }
-        ui.add_space(22.0);
+                ui.add_space(22.0);
+                match active_section {
+                    SettingsSection::Appearance => appearance_section(ui, theme, settings),
+                    SettingsSection::ReportGeneration => report_section(ui, theme, report_format),
+                }
+                ui.add_space(22.0);
+            });
+        });
     });
 }
 
