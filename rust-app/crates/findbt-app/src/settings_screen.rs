@@ -65,48 +65,57 @@ fn settings_sidebar(
     active_section: SettingsSection,
     action: &mut Option<SettingsScreenAction>,
 ) {
+    ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
+    ui.set_width(ui.available_width());
     ui.add_space(18.0);
-    ui.heading(egui::RichText::new("Settings").color(theme.text).size(18.0));
-    ui.label(
-        egui::RichText::new("Preferences for this FindBT workstation")
-            .color(theme.text_muted)
-            .size(11.0),
-    );
+    ui.horizontal(|ui| {
+        ui.add_space(18.0);
+        ui.vertical(|ui| {
+            ui.set_width(224.0);
+            ui.heading(egui::RichText::new("Settings").color(theme.text).size(18.0));
 
-    ui.add_space(22.0);
-    widgets::caption(ui, theme, "Sections");
-    ui.add_space(8.0);
-    if nav_item(
-        ui,
-        theme,
-        "Appearance",
-        active_section == SettingsSection::Appearance,
-    )
-    .clicked()
-    {
-        *action = Some(SettingsScreenAction::SelectSection(
-            SettingsSection::Appearance,
-        ));
-    }
-    ui.add_space(6.0);
-    if nav_item(
-        ui,
-        theme,
-        "Report generation",
-        active_section == SettingsSection::ReportGeneration,
-    )
-    .clicked()
-    {
-        *action = Some(SettingsScreenAction::SelectSection(
-            SettingsSection::ReportGeneration,
-        ));
-    }
+            ui.add_space(22.0);
+            widgets::caption(ui, theme, "Sections");
+            ui.add_space(8.0);
+            if nav_item(
+                ui,
+                theme,
+                "Appearance",
+                active_section == SettingsSection::Appearance,
+            )
+            .clicked()
+            {
+                *action = Some(SettingsScreenAction::SelectSection(
+                    SettingsSection::Appearance,
+                ));
+            }
+            ui.add_space(6.0);
+            if nav_item(
+                ui,
+                theme,
+                "Report generation",
+                active_section == SettingsSection::ReportGeneration,
+            )
+            .clicked()
+            {
+                *action = Some(SettingsScreenAction::SelectSection(
+                    SettingsSection::ReportGeneration,
+                ));
+            }
+        });
+    });
 
     ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
-        ui.add_space(14.0);
-        if widgets::secondary_button(ui, theme, "Back to Capture").clicked() {
-            *action = Some(SettingsScreenAction::BackToCapture);
-        }
+        ui.add_space(20.0);
+        ui.horizontal(|ui| {
+            ui.add_space(18.0);
+            ui.vertical(|ui| {
+                ui.set_width(224.0);
+                if widgets::sidebar_button(ui, theme, "Back to Capture").clicked() {
+                    *action = Some(SettingsScreenAction::BackToCapture);
+                }
+            });
+        });
     });
 }
 
@@ -265,6 +274,7 @@ fn nav_item(ui: &mut egui::Ui, theme: Theme, label: &str, selected: bool) -> egu
         .corner_radius(6.0)
         .inner_margin(egui::Margin::symmetric(10, 8))
         .show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
             ui.label(
                 egui::RichText::new(label)
                     .color(theme.text)

@@ -31,14 +31,10 @@ pub fn primary_button_enabled(
 ) -> egui::Response {
     ui.add_enabled(
         enabled,
-        egui::Button::new(
-            egui::RichText::new(text)
-                .color(theme.accent_text)
-                .strong(),
-        )
-        .fill(theme.accent_main())
-        .corner_radius(theme.control_radius)
-        .min_size(egui::vec2(120.0, 34.0)),
+        egui::Button::new(egui::RichText::new(text).color(theme.accent_text).strong())
+            .fill(theme.accent_main())
+            .corner_radius(theme.control_radius)
+            .min_size(egui::vec2(120.0, 34.0)),
     )
 }
 
@@ -53,6 +49,18 @@ pub fn secondary_button(ui: &mut egui::Ui, theme: Theme, text: &str) -> egui::Re
             .stroke(egui::Stroke::new(1.0, theme.border))
             .corner_radius(theme.control_radius)
             .min_size(egui::vec2(96.0, 34.0)),
+    )
+}
+
+/// Full-width sidebar footer button. Used for screen navigation actions so
+/// capture/settings behave consistently from the same bottom-left location.
+pub fn sidebar_button(ui: &mut egui::Ui, theme: Theme, text: &str) -> egui::Response {
+    ui.add_sized(
+        egui::vec2(ui.available_width(), 34.0),
+        egui::Button::new(egui::RichText::new(text).color(theme.text).strong())
+            .fill(theme.bg_elevated)
+            .stroke(egui::Stroke::new(1.0, theme.border))
+            .corner_radius(theme.control_radius),
     )
 }
 
@@ -146,7 +154,11 @@ pub fn titlebar_button(
     let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
     let hovered = response.hovered();
     if hovered {
-        let bg = if danger { hex(0xc42b1c) } else { theme.bg_sunken };
+        let bg = if danger {
+            hex(0xc42b1c)
+        } else {
+            theme.bg_sunken
+        };
         ui.painter().rect_filled(rect, 0.0, bg);
     }
     let color = if hovered && danger {

@@ -2,7 +2,7 @@ use findbt_core::{CaptureSession, DeviceKind, DeviceRecord, ScanPhase};
 
 use crate::{
     theme::{signal_color, Theme},
-    titlebar::{titlebar, TitlebarAction},
+    titlebar::titlebar,
     widgets,
 };
 
@@ -46,25 +46,29 @@ pub fn show(
         .exact_size(40.0)
         .frame(egui::Frame::new().fill(state.theme.bg_elevated))
         .show(ui, |ui| {
-            if let TitlebarAction::OpenSettings = titlebar(ui, state.theme, true, state.app_icon)
-            {
-                action = Some(MainScreenAction::OpenSettings);
-            }
+            let _ = titlebar(ui, state.theme, false, state.app_icon);
         });
 
     egui::Panel::left("sidebar")
         .exact_size(260.0)
         .frame(egui::Frame::new().fill(state.theme.bg_sunken))
         .show(ui, |ui| {
-            sidebar(
-                ui,
-                session,
-                state.theme,
-                state.active_phase,
-                state.scanning_phase,
-                state.status,
-                &mut action,
-            )
+            ui.allocate_ui_with_layout(
+                ui.available_size(),
+                egui::Layout::top_down(egui::Align::Min),
+                |ui| {
+                    ui.set_width(ui.available_width());
+                    sidebar(
+                        ui,
+                        session,
+                        state.theme,
+                        state.active_phase,
+                        state.scanning_phase,
+                        state.status,
+                        &mut action,
+                    )
+                },
+            );
         });
 
     egui::CentralPanel::default()
@@ -80,24 +84,59 @@ fn sidebar(
     theme: Theme,
     active_phase: ScanPhase,
     scanning_phase: Option<ScanPhase>,
-    status: &str,
+    _status: &str,
     action: &mut Option<MainScreenAction>,
 ) {
-    ui.add_space(14.0);
+    ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
+    ui.set_width(ui.available_width());
+    ui.add_space(18.0);
+    ui.horizontal(|ui| {
+        ui.add_space(18.0);
+        ui.vertical(|ui| {
+            ui.set_width(224.0);
+            sidebar_content(ui, session, theme, active_phase, scanning_phase, action);
+        });
+    });
+
+    ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
+        ui.add_space(20.0);
+        ui.horizontal(|ui| {
+            ui.add_space(18.0);
+            ui.vertical(|ui| {
+                ui.set_width(224.0);
+                if widgets::sidebar_button(ui, theme, "Settings").clicked() {
+                    *action = Some(MainScreenAction::OpenSettings);
+                }
+            });
+        });
+    });
+}
+
+fn sidebar_content(
+    ui: &mut egui::Ui,
+    session: &CaptureSession,
+    theme: Theme,
+    active_phase: ScanPhase,
+    scanning_phase: Option<ScanPhase>,
+    action: &mut Option<MainScreenAction>,
+) {
     widgets::caption(ui, theme, "Host adapter");
     ui.add_space(8.0);
     panel(ui, theme, |ui| {
+        ui.set_min_width(ui.available_width());
         ui.label(
             egui::RichText::new(&session.host.name)
                 .color(theme.text)
+                .size(13.0)
                 .strong(),
         );
         ui.label(
             egui::RichText::new(&session.host.address)
                 .color(theme.text_muted)
-                .monospace(),
+                .monospace()
+                .size(11.0),
         );
-        ui.add_space(4.0);
+        ui.add_space(6.0);
         ui.label(
             egui::RichText::new(&session.metadata.name)
                 .color(theme.text_muted)
@@ -111,7 +150,6 @@ fn sidebar(
         let complete = session.phase_run_for(phase).is_some();
         let scanning = scanning_phase == Some(phase);
         let selected = active_phase == phase;
-        let label = format!("{}  {}", phase.number(), phase.tab_title());
         let fill = if selected {
             theme.accent_soft()
         } else {
@@ -128,10 +166,12 @@ fn sidebar(
             .corner_radius(6.0)
             .inner_margin(egui::Margin::symmetric(10, 8))
             .show(ui, |ui| {
+                ui.set_min_width(ui.available_width());
                 ui.horizontal(|ui| {
                     phase_badge(ui, theme, phase, complete, scanning);
+                    ui.add_space(8.0);
                     ui.label(
-                        egui::RichText::new(label)
+                        egui::RichText::new(phase.tab_title())
                             .color(theme.text)
                             .size(12.0)
                             .strong(),
@@ -144,18 +184,10 @@ fn sidebar(
         }
         ui.add_space(6.0);
     }
-
-    ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
-        ui.add_space(12.0);
-        if widgets::secondary_button(ui, theme, "Reset capture").clicked() {
-            *action = Some(MainScreenAction::ResetCapture);
-        }
-        ui.label(
-            egui::RichText::new(status)
-                .color(theme.text_muted)
-                .size(11.0),
-        );
-    });
+    ui.add_space(8.0);
+    if widgets::sidebar_button(ui, theme, "Reset capture").clicked() {
+        *action = Some(MainScreenAction::ResetCapture);
+    }
 }
 
 fn main_panel(
@@ -170,64 +202,148 @@ fn main_panel(
     let filter_text = state.filter_text;
     let kind_filter = state.kind_filter;
 
-    ui.add_space(18.0);
+    ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
+    ui.add_space(22.0);
     ui.horizontal(|ui| {
+        ui.add_space(24.0);
         ui.vertical(|ui| {
-            ui.heading(
-                egui::RichText::new(active_phase.tab_title())
-                    .color(theme.text)
-                    .size(18.0),
-            );
-            ui.label(
-                egui::RichText::new(active_phase.description())
-                    .color(theme.text_muted)
-                    .size(12.0),
+            ui.set_width((ui.available_width() - 24.0).max(0.0));
+            phase_header(ui, session, theme, active_phase, scanning_phase, action);
+            ui.add_space(18.0);
+            device_registry(
+                ui,
+                session,
+                theme,
+                active_phase,
+                filter_text,
+                kind_filter,
+                action,
             );
         });
-        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if widgets::secondary_button(ui, theme, "Generate Report").clicked() {
-                *action = Some(MainScreenAction::GenerateReport);
+    });
+}
+
+fn phase_header(
+    ui: &mut egui::Ui,
+    session: &CaptureSession,
+    theme: Theme,
+    active_phase: ScanPhase,
+    scanning_phase: Option<ScanPhase>,
+    action: &mut Option<MainScreenAction>,
+) {
+    panel(ui, theme, |ui| {
+        ui.set_min_width(ui.available_width());
+        ui.horizontal(|ui| {
+            ui.vertical(|ui| {
+                ui.heading(
+                    egui::RichText::new(active_phase.tab_title())
+                        .color(theme.text)
+                        .size(20.0),
+                );
+                ui.add_space(4.0);
+                ui.label(
+                    egui::RichText::new(active_phase.description())
+                        .color(theme.text_muted)
+                        .size(12.0),
+                );
+            });
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if widgets::secondary_button(ui, theme, "Generate Report").clicked() {
+                    *action = Some(MainScreenAction::GenerateReport);
+                }
+            });
+        });
+
+        ui.add_space(16.0);
+        ui.horizontal(|ui| {
+            let button_text = if scanning_phase == Some(active_phase) {
+                "Stop Scan"
+            } else if session.phase_run_for(active_phase).is_some() {
+                "Rescan"
+            } else {
+                "Start Scan"
+            };
+            let clicked = widgets::primary_button(ui, theme, button_text).clicked();
+            if clicked {
+                *action = Some(if scanning_phase == Some(active_phase) {
+                    MainScreenAction::Stop
+                } else if session.phase_run_for(active_phase).is_some() {
+                    MainScreenAction::Rescan(active_phase)
+                } else {
+                    MainScreenAction::Start(active_phase)
+                });
+            }
+            if scanning_phase == Some(active_phase) {
+                ui.add_space(10.0);
+                ui.colored_label(theme.accent_main(), "scanning");
             }
         });
     });
+}
 
-    ui.add_space(18.0);
-    ui.horizontal(|ui| {
-        let button_text = if scanning_phase == Some(active_phase) {
-            "Stop Scan"
-        } else if session.phase_run_for(active_phase).is_some() {
-            "Rescan"
-        } else {
-            "Start Scan"
-        };
-        let clicked = widgets::primary_button(ui, theme, button_text).clicked();
-        if clicked {
-            *action = Some(if scanning_phase == Some(active_phase) {
-                MainScreenAction::Stop
-            } else if session.phase_run_for(active_phase).is_some() {
-                MainScreenAction::Rescan(active_phase)
-            } else {
-                MainScreenAction::Start(active_phase)
+fn device_registry(
+    ui: &mut egui::Ui,
+    session: &CaptureSession,
+    theme: Theme,
+    active_phase: ScanPhase,
+    filter_text: &str,
+    kind_filter: KindFilter,
+    action: &mut Option<MainScreenAction>,
+) {
+    panel(ui, theme, |ui| {
+        ui.set_min_width(ui.available_width());
+        ui.horizontal(|ui| {
+            ui.vertical(|ui| {
+                ui.label(
+                    egui::RichText::new("Device registry")
+                        .color(theme.text)
+                        .strong()
+                        .size(14.0),
+                );
+                ui.label(
+                    egui::RichText::new("Devices seen across the capture phases")
+                        .color(theme.text_muted)
+                        .size(11.0),
+                );
             });
-        }
-        if scanning_phase == Some(active_phase) {
-            ui.colored_label(theme.accent_main(), "● scanning");
-        }
-    });
+        });
 
-    ui.add_space(14.0);
-    ui.horizontal(|ui| {
+        ui.add_space(14.0);
+        registry_toolbar(ui, theme, filter_text, kind_filter, action);
+        ui.add_space(12.0);
+        registry_legend(ui, theme);
+        ui.add_space(12.0);
+        device_table(ui, session, theme, active_phase, filter_text, kind_filter);
+    });
+}
+
+fn registry_toolbar(
+    ui: &mut egui::Ui,
+    theme: Theme,
+    filter_text: &str,
+    kind_filter: KindFilter,
+    action: &mut Option<MainScreenAction>,
+) {
+    ui.horizontal_wrapped(|ui| {
         let mut next_filter = filter_text.to_string();
-        if ui
-            .add(
-                egui::TextEdit::singleline(&mut next_filter)
-                    .hint_text("Filter devices")
-                    .desired_width(260.0),
-            )
-            .changed()
-        {
+        let response = egui::Frame::new()
+            .fill(theme.bg)
+            .stroke(egui::Stroke::new(1.0, theme.border_soft))
+            .corner_radius(theme.control_radius)
+            .inner_margin(egui::Margin::symmetric(10, 6))
+            .show(ui, |ui| {
+                ui.add(
+                    egui::TextEdit::singleline(&mut next_filter)
+                        .hint_text("Filter devices")
+                        .desired_width(280.0)
+                        .frame(egui::Frame::NONE),
+                )
+            })
+            .inner;
+        if response.changed() {
             *action = Some(MainScreenAction::SetFilterText(next_filter));
         }
+        ui.add_space(10.0);
         filter_chip(
             ui,
             theme,
@@ -247,51 +363,102 @@ fn main_panel(
             );
         }
     });
+}
 
-    ui.add_space(10.0);
+fn registry_legend(ui: &mut egui::Ui, theme: Theme) {
+    ui.horizontal_wrapped(|ui| {
+        legend_item(ui, theme, MarkerState::Seen, "seen");
+        ui.add_space(12.0);
+        legend_item(ui, theme, MarkerState::Missed, "phase ran, not seen");
+        ui.add_space(12.0);
+        legend_item(ui, theme, MarkerState::Pending, "phase pending");
+    });
+}
+
+fn legend_item(ui: &mut egui::Ui, theme: Theme, state: MarkerState, label: &str) {
     ui.horizontal(|ui| {
-        marker(ui, theme, MarkerState::Seen, 1.0);
+        marker(ui, theme, state, 1.0);
         ui.label(
-            egui::RichText::new("seen")
-                .color(theme.text_muted)
-                .size(10.0),
-        );
-        marker(ui, theme, MarkerState::Missed, 1.0);
-        ui.label(
-            egui::RichText::new("phase ran, not seen")
-                .color(theme.text_muted)
-                .size(10.0),
-        );
-        marker(ui, theme, MarkerState::Pending, 1.0);
-        ui.label(
-            egui::RichText::new("phase pending")
+            egui::RichText::new(label)
                 .color(theme.text_muted)
                 .size(10.0),
         );
     });
+}
 
-    ui.add_space(10.0);
-    egui::ScrollArea::vertical().show(ui, |ui| {
-        egui::Grid::new("device-table")
-            .num_columns(7)
-            .spacing([16.0, 10.0])
-            .striped(true)
-            .show(ui, |ui| {
-                header(ui, theme, "Signal");
-                header(ui, theme, "Device");
-                header(ui, theme, "Kind");
-                header(ui, theme, "RSSI");
-                header(ui, theme, "Baseline");
-                header(ui, theme, "Target");
-                header(ui, theme, "Verification");
-                ui.end_row();
+fn device_table(
+    ui: &mut egui::Ui,
+    session: &CaptureSession,
+    theme: Theme,
+    active_phase: ScanPhase,
+    filter_text: &str,
+    kind_filter: KindFilter,
+) {
+    let devices: Vec<&DeviceRecord> = filtered_devices(session, filter_text, kind_filter).collect();
+    if devices.is_empty() {
+        empty_state(ui, theme, filter_text);
+        return;
+    }
 
-                for device in filtered_devices(session, filter_text, kind_filter) {
-                    device_row(ui, session, theme, device, active_phase);
+    egui::ScrollArea::vertical()
+        .max_height(420.0)
+        .show(ui, |ui| {
+            egui::Grid::new("device-table")
+                .num_columns(7)
+                .min_col_width(68.0)
+                .spacing([18.0, 12.0])
+                .striped(true)
+                .show(ui, |ui| {
+                    header(ui, theme, "Signal");
+                    header(ui, theme, "Device");
+                    header(ui, theme, "Kind");
+                    header(ui, theme, "RSSI");
+                    header(ui, theme, "Baseline");
+                    header(ui, theme, "Target");
+                    header(ui, theme, "Verification");
                     ui.end_row();
-                }
+
+                    for device in devices {
+                        device_row(ui, session, theme, device, active_phase);
+                        ui.end_row();
+                    }
+                });
+        });
+}
+
+fn empty_state(ui: &mut egui::Ui, theme: Theme, filter_text: &str) {
+    egui::Frame::new()
+        .fill(theme.bg)
+        .stroke(egui::Stroke::new(1.0, theme.border_soft))
+        .corner_radius(6.0)
+        .inner_margin(egui::Margin::symmetric(18, 22))
+        .show(ui, |ui| {
+            ui.set_min_width(ui.available_width());
+            ui.vertical_centered(|ui| {
+                let title = if filter_text.trim().is_empty() {
+                    "No devices recorded yet"
+                } else {
+                    "No devices match the current filter"
+                };
+                let detail = if filter_text.trim().is_empty() {
+                    "Start the active scan phase to populate this registry."
+                } else {
+                    "Adjust the search text or device type filters to widen the results."
+                };
+                ui.label(
+                    egui::RichText::new(title)
+                        .color(theme.text)
+                        .strong()
+                        .size(13.0),
+                );
+                ui.add_space(4.0);
+                ui.label(
+                    egui::RichText::new(detail)
+                        .color(theme.text_muted)
+                        .size(11.0),
+                );
             });
-    });
+        });
 }
 
 fn filtered_devices<'a>(
