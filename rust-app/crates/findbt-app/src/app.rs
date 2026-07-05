@@ -35,6 +35,76 @@ pub struct FindBtApp {
     report_format: ReportFormat,
     show_settings: bool,
     settings: AppSettings,
+    /// The real bundled app icon, uploaded to the GPU once at startup and
+    /// reused everywhere the icon is shown (titlebar, wizard) so it never
+    /// has to be decoded or re-uploaded per frame.
+    app_icon: egui::TextureHandle,
+}
+
+/// Decode the bundled app icon PNG and upload it as a texture. Reuses
+/// `eframe::icon_data::from_png_bytes`, the same decoder already used for
+/// the OS window/taskbar icon in `main.rs`, so the wizard and titlebar show
+/// the identical, official icon rather than a placeholder.
+///
+/// The source art is a flat, fully opaque 256x256 square (no alpha channel,
+/// solid black outside the rounded icon graphic) and is only ever shown
+/// small (20-40px) in the UI. It is down-sampled here with a box filter
+/// before upload so it stays crisp instead of relying on the GPU to minify
+/// a 256px texture down to a few dozen pixels on the fly, which looks
+/// blurry. The remaining flat black corners are clipped off separately by
+/// `logo()`, which draws the texture with a rounded `corner_radius`.
+fn load_app_icon_texture(ctx: &egui::Context) -> egui::TextureHandle {
+    let icon = eframe::icon_data::from_png_bytes(include_bytes!("../assets/app-icon-256.png"))
+        .expect("bundled app icon must be a valid PNG");
+    let width = icon.width as usize;
+    let height = icon.height as usize;
+    let factor = (width / 64).max(1);
+    let (rgba, out_w, out_h) = downsample_rgba_box(&icon.rgba, width, height, factor);
+    let image = egui::ColorImage::from_rgba_unmultiplied([out_w, out_h], &rgba);
+    ctx.load_texture("findbt-app-icon", image, egui::TextureOptions::LINEAR)
+}
+
+/// Shrink an RGBA buffer by an integer `factor` using a simple box filter
+/// (each output pixel is the average of the corresponding `factor x factor`
+/// block of input pixels). Implemented by hand rather than pulling in an
+/// image-resizing crate, since this is the only place the app needs it.
+fn downsample_rgba_box(rgba: &[u8], width: usize, height: usize, factor: usize) -> (Vec<u8>, usize, usize) {
+    let factor = factor.max(1);
+    if factor == 1 {
+        return (rgba.to_vec(), width, height);
+    }
+    let out_w = (width / factor).max(1);
+    let out_h = (height / factor).max(1);
+    let mut out = vec![0u8; out_w * out_h * 4];
+    for oy in 0..out_h {
+        for ox in 0..out_w {
+            let mut sum = [0u32; 4];
+            let mut count = 0u32;
+            for dy in 0..factor {
+                let y = oy * factor + dy;
+                if y >= height {
+                    continue;
+                }
+                for dx in 0..factor {
+                    let x = ox * factor + dx;
+                    if x >= width {
+                        continue;
+                    }
+                    let idx = (y * width + x) * 4;
+                    for c in 0..4 {
+                        sum[c] += rgba[idx + c] as u32;
+                    }
+                    count += 1;
+                }
+            }
+            let count = count.max(1);
+            let out_idx = (oy * out_w + ox) * 4;
+            for c in 0..4 {
+                out[out_idx + c] = (sum[c] / count) as u8;
+            }
+        }
+    }
+    (out, out_w, out_h)
 }
 
 enum Screen {
@@ -43,7 +113,7 @@ enum Screen {
 }
 
 impl FindBtApp {
-    pub fn new() -> Self {
+    pub fn new(ctx: &egui::Context) -> Self {
         let backend = DefaultBluetoothBackend::new();
         let detected_host = backend.default_adapter().unwrap_or_default();
         Self {
@@ -60,6 +130,7 @@ impl FindBtApp {
             report_format: ReportFormat::Html,
             show_settings: false,
             settings: AppSettings::load(),
+            app_icon: load_app_icon_texture(ctx),
         }
     }
 
@@ -251,7 +322,7 @@ impl eframe::App for FindBtApp {
         self.apply_theme(&ctx);
 
         match &mut self.screen {
-            Screen::Wizard(state) => match state.ui(ui, self.theme) {
+            Screen::Wizard(state) => match state.ui(ui, self.theme, &self.app_icon) {
                 WizardAction::None => {}
                 WizardAction::Begin { metadata, host } => self.begin_session(metadata, host),
             },
@@ -266,6 +337,7 @@ impl eframe::App for FindBtApp {
                         status: &self.status,
                         filter_text: &self.filter_text,
                         kind_filter: self.kind_filter,
+                        app_icon: &self.app_icon,
                     },
                 );
                 if let Some(action) = action {

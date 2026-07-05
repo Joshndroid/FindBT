@@ -7,6 +7,7 @@ mod main_screen;
 mod settings;
 mod theme;
 mod titlebar;
+mod widgets;
 mod wizard;
 
 use app::FindBtApp;
@@ -26,7 +27,7 @@ fn main() -> eframe::Result {
         options,
         Box::new(|cc| {
             configure_fonts(&cc.egui_ctx);
-            Ok(Box::new(FindBtApp::new()))
+            Ok(Box::new(FindBtApp::new(&cc.egui_ctx)))
         }),
     )
 }

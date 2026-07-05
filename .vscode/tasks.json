@@ -9,10 +9,7 @@
       "options": {
         "cwd": "${workspaceFolder}/rust-app"
       },
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      },
+      "group": "build",
       "problemMatcher": "$rustc"
     },
     {
@@ -63,6 +60,29 @@
       "linux": {
         "command": "echo",
         "args": ["Windows packaging must be run on Windows."]
+      }
+    },
+    {
+      "label": "rust: package (default)",
+      "type": "shell",
+      "command": "${workspaceFolder}/rust-app/scripts/package-macos.sh",
+      "options": {
+        "cwd": "${workspaceFolder}/rust-app"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": [],
+      "windows": {
+        "command": "powershell",
+        "args": [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          "${workspaceFolder}/rust-app/scripts/package-windows.ps1"
+        ]
       }
     }
   ]

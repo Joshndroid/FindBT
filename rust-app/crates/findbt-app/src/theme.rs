@@ -29,6 +29,16 @@ pub struct Theme {
     pub text: Color32,
     pub text_muted: Color32,
     pub accent_text: Color32,
+    /// Corner radius for interactive controls: buttons, inputs, chips. Kept
+    /// tight and rectangular, matching the Windows 11 / Fluent "small
+    /// control" radius, so controls read the same on every screen and every
+    /// platform.
+    pub control_radius: f32,
+    /// Corner radius for containers: cards, sheets, panels. Kept generous,
+    /// matching macOS's softer dialog/sheet rounding. The contrast between
+    /// a softly rounded card and crisp, rectangular controls inside it is
+    /// the app's cross-platform "neutral" look.
+    pub card_radius: f32,
 }
 
 impl Theme {
@@ -44,6 +54,8 @@ impl Theme {
             text: hex(0x171b1f),
             text_muted: hex(0x646a70),
             accent_text: hex(0xfafcfe),
+            control_radius: 4.0,
+            card_radius: 16.0,
         }
     }
 
@@ -60,6 +72,8 @@ impl Theme {
             text: hex(0xe8ebef),
             text_muted: hex(0x858d96),
             accent_text: hex(0x06090d),
+            control_radius: 4.0,
+            card_radius: 16.0,
         }
     }
 

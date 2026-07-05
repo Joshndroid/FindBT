@@ -3,6 +3,7 @@ use findbt_core::{CaptureSession, DeviceKind, DeviceRecord, ScanPhase};
 use crate::{
     theme::{signal_color, Theme},
     titlebar::{titlebar, TitlebarAction},
+    widgets,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -24,7 +25,7 @@ pub enum MainScreenAction {
     OpenSettings,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Clone, Copy)]
 pub struct MainScreenState<'a> {
     pub theme: Theme,
     pub active_phase: ScanPhase,
@@ -32,6 +33,7 @@ pub struct MainScreenState<'a> {
     pub status: &'a str,
     pub filter_text: &'a str,
     pub kind_filter: KindFilter,
+    pub app_icon: &'a egui::TextureHandle,
 }
 
 pub fn show(
@@ -44,7 +46,8 @@ pub fn show(
         .exact_size(40.0)
         .frame(egui::Frame::new().fill(state.theme.bg_elevated))
         .show(ui, |ui| {
-            if let TitlebarAction::OpenSettings = titlebar(ui, state.theme, true) {
+            if let TitlebarAction::OpenSettings = titlebar(ui, state.theme, true, state.app_icon)
+            {
                 action = Some(MainScreenAction::OpenSettings);
             }
         });
@@ -81,12 +84,7 @@ fn sidebar(
     action: &mut Option<MainScreenAction>,
 ) {
     ui.add_space(14.0);
-    ui.label(
-        egui::RichText::new("HOST ADAPTER")
-            .color(theme.text_muted)
-            .size(10.0)
-            .strong(),
-    );
+    widgets::caption(ui, theme, "Host adapter");
     ui.add_space(8.0);
     panel(ui, theme, |ui| {
         ui.label(
@@ -107,12 +105,7 @@ fn sidebar(
         );
     });
     ui.add_space(18.0);
-    ui.label(
-        egui::RichText::new("PHASES")
-            .color(theme.text_muted)
-            .size(10.0)
-            .strong(),
-    );
+    widgets::caption(ui, theme, "Phases");
     ui.add_space(8.0);
     for phase in ScanPhase::ALL {
         let complete = session.phase_run_for(phase).is_some();
@@ -154,7 +147,7 @@ fn sidebar(
 
     ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
         ui.add_space(12.0);
-        if ui.button("Reset capture").clicked() {
+        if widgets::secondary_button(ui, theme, "Reset capture").clicked() {
             *action = Some(MainScreenAction::ResetCapture);
         }
         ui.label(
@@ -192,13 +185,7 @@ fn main_panel(
             );
         });
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-            if ui
-                .add(
-                    egui::Button::new(egui::RichText::new("Generate Report").strong())
-                        .corner_radius(20.0),
-                )
-                .clicked()
-            {
+            if widgets::secondary_button(ui, theme, "Generate Report").clicked() {
                 *action = Some(MainScreenAction::GenerateReport);
             }
         });
@@ -213,18 +200,7 @@ fn main_panel(
         } else {
             "Start Scan"
         };
-        let clicked = ui
-            .add(
-                egui::Button::new(
-                    egui::RichText::new(button_text)
-                        .color(theme.accent_text)
-                        .strong(),
-                )
-                .fill(theme.accent_main())
-                .corner_radius(6.0)
-                .min_size(egui::vec2(112.0, 34.0)),
-            )
-            .clicked();
+        let clicked = widgets::primary_button(ui, theme, button_text).clicked();
         if clicked {
             *action = Some(if scanning_phase == Some(active_phase) {
                 MainScreenAction::Stop
@@ -505,10 +481,5 @@ fn filter_chip(
 }
 
 fn header(ui: &mut egui::Ui, theme: Theme, text: &str) {
-    ui.label(
-        egui::RichText::new(text)
-            .color(theme.text_muted)
-            .size(10.0)
-            .strong(),
-    );
+    widgets::caption(ui, theme, text);
 }

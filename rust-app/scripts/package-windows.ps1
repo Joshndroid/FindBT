@@ -14,6 +14,15 @@ param(
 $doInstaller = $Artifact -in @("All", "Installer")
 $doOffline = $Artifact -in @("All", "OfflinePortable")
 
+# Release builds must be scanned by the locally installed Microsoft Defender
+# before they're considered finished artifacts. Callers can still pass
+# -RequireDefender:$false explicitly to opt out (e.g. a machine known not to
+# have Defender), but by default a Release build fails loudly instead of
+# silently shipping an unscanned binary.
+if (-not $PSBoundParameters.ContainsKey('RequireDefender') -and $Configuration -eq 'Release') {
+    $RequireDefender = $true
+}
+
 $ErrorActionPreference = "Stop"
 $root = Resolve-Path (Join-Path $PSScriptRoot "..")
 $repoRoot = Resolve-Path (Join-Path $root "..")
@@ -38,6 +47,7 @@ $releaseName = "FindBT-v$version-windows-x64"
 $distDir = Join-Path $root "dist\windows"
 $artifactsDir = Join-Path $distDir "artifacts"
 $localReleasePath = Join-Path $artifactsDir "local-release.txt"
+$localReleaseOut = Join-Path $repoRoot "FindBT-Local-Release\windows"
 $portableDir = Join-Path $distDir "$releaseName-portable"
 $offlineDir = Join-Path $distDir "$releaseName-offline-portable"
 $targetProfile = if ($Configuration -eq "Release") { "release" } else { "debug" }
@@ -86,12 +96,11 @@ SHA256 files are generated beside each installer and portable zip.
 
 Checks:
 - cargo build -p findbt-app
-- Microsoft Defender scan is run when Microsoft Defender is available.
+- Microsoft Defender scan: $(if ($RequireDefender) { "required (Release build)" } else { "run if available, not required" })
 "@ | Set-Content -Path $localReleasePath -Encoding ASCII
 
     if ($doInstaller) {
         Copy-Item -Path $builtExe -Destination $portableExe
-        Copy-Item -Path $iconPath -Destination (Join-Path $portableDir "FindBT.ico")
         Copy-Item -Path (Join-Path $repoRoot "QUICKSTART.md") -Destination (Join-Path $portableDir "quickstart.txt")
         Copy-Item -Path $localReleasePath -Destination (Join-Path $portableDir "local-release.txt")
         @"
@@ -102,7 +111,6 @@ Version: v$version
 Configuration: $Configuration
 Contents:
 - FindBT.exe
-- FindBT.ico
 - quickstart.txt
 - local-release.txt
 
@@ -116,6 +124,11 @@ This portable build is intended to run offline from the extracted folder.
 
         $wix = Get-Command wix.exe -ErrorAction SilentlyContinue
         if ($wix) {
+            # The .ico isn't embedded in FindBT.exe (rc.exe embeds it at compile
+            # time when available; see crates/findbt-app/build.rs), so it's kept
+            # out of the portable zip above. WiX still needs a copy on disk here
+            # to build the Start Menu shortcut icon and MSI icon resource.
+            Copy-Item -Path $iconPath -Destination (Join-Path $portableDir "FindBT.ico")
             if (Test-Path $msiPath) {
                 Remove-Item -Force $msiPath
             }
@@ -137,7 +150,6 @@ This portable build is intended to run offline from the extracted folder.
 
     if ($doOffline) {
         Copy-Item -Path $builtExe -Destination (Join-Path $offlineDir "FindBT.exe")
-        Copy-Item -Path $iconPath -Destination (Join-Path $offlineDir "FindBT.ico")
         Copy-Item -Path (Join-Path $repoRoot "QUICKSTART.md") -Destination (Join-Path $offlineDir "quickstart.txt")
         Copy-Item -Path $localReleasePath -Destination (Join-Path $offlineDir "local-release.txt")
         @"
@@ -175,6 +187,16 @@ This package is intended for offline machines. No network access is required to 
 
     Write-Host "Windows artifacts:"
     Get-ChildItem -Path $artifactsDir -File | Select-Object -ExpandProperty Name
+
+    # Copy only the finished release artifacts to a root-level folder so it can
+    # be synced (e.g. Nextcloud) independently of rust-app\target and rust-app\dist,
+    # which hold much larger build intermediates.
+    if (Test-Path $localReleaseOut) {
+        Remove-Item -Recurse -Force $localReleaseOut
+    }
+    New-Item -ItemType Directory -Force -Path $localReleaseOut | Out-Null
+    Copy-Item -Path (Join-Path $artifactsDir "*") -Destination $localReleaseOut -Recurse -Force
+    Write-Host "Copied release artifacts to $localReleaseOut"
 }
 finally {
     Pop-Location

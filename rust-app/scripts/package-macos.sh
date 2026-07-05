@@ -3,6 +3,7 @@ set -euo pipefail
 export COPYFILE_DISABLE=1
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "${ROOT}/.." && pwd)"
 VERSION="$(awk -F '"' 'found && /^version = / { print $2; exit } /^\[workspace.package\]/ { found=1 }' "${ROOT}/Cargo.toml")"
 APP_NAME="FindBT"
 RELEASE="FindBT-v${VERSION}-macos"
@@ -12,6 +13,7 @@ ARTIFACT_DIR="${DIST_DIR}/artifacts"
 APP_DIR="${RELEASE_DIR}/${APP_NAME}.app"
 PORTABLE_STAGING="${DIST_DIR}/${RELEASE}-portable"
 LOCAL_RELEASE="${ARTIFACT_DIR}/local-release.txt"
+LOCAL_RELEASE_OUT="${REPO_ROOT}/FindBT-Local-Release/macos"
 
 cd "${ROOT}"
 "${ROOT}/scripts/build-macos-app.sh" release
@@ -98,3 +100,11 @@ done
 
 echo "macOS artifacts:"
 ls -1 "${ARTIFACT_DIR}"
+
+# Copy only the finished release artifacts to a root-level folder so it can
+# be synced (e.g. Nextcloud) independently of rust-app/target and rust-app/dist,
+# which hold much larger build intermediates.
+rm -rf "${LOCAL_RELEASE_OUT}"
+mkdir -p "${LOCAL_RELEASE_OUT}"
+cp -R "${ARTIFACT_DIR}/." "${LOCAL_RELEASE_OUT}/"
+echo "Copied release artifacts to ${LOCAL_RELEASE_OUT}"
