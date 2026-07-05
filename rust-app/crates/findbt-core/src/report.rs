@@ -88,10 +88,7 @@ pub fn generate_html(session: &CaptureSession) -> String {
     let meta_items = [
         ("Scan date", session.metadata.date.to_string()),
         ("Scan reference", session.metadata.name.clone()),
-        (
-            "Target device reference",
-            session.metadata.section.clone(),
-        ),
+        ("Target device reference", session.metadata.section.clone()),
         ("User", session.metadata.user.clone()),
         ("Computer name", session.host.computer_name.clone()),
         ("Tagged local radio", tagged_local_radio),

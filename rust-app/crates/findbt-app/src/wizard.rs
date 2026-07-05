@@ -40,7 +40,12 @@ impl WizardState {
         }
     }
 
-    pub fn ui(&mut self, ui: &mut egui::Ui, theme: Theme, icon: &egui::TextureHandle) -> WizardAction {
+    pub fn ui(
+        &mut self,
+        ui: &mut egui::Ui,
+        theme: Theme,
+        icon: &egui::TextureHandle,
+    ) -> WizardAction {
         let mut action = WizardAction::None;
         egui::Panel::top("wizard-titlebar")
             .exact_size(40.0)
@@ -129,14 +134,7 @@ impl WizardState {
                                             "",
                                             field_width,
                                         );
-                                        field(
-                                            ui,
-                                            theme,
-                                            "User",
-                                            &mut self.user,
-                                            "",
-                                            field_width,
-                                        );
+                                        field(ui, theme, "User", &mut self.user, "", field_width);
 
                                         ui.add_space(4.0);
                                         ui.separator();
@@ -197,10 +195,7 @@ impl WizardState {
                                                     action = WizardAction::Begin {
                                                         metadata,
                                                         host: HostAdapterInfo {
-                                                            name: self
-                                                                .host_name
-                                                                .trim()
-                                                                .to_string(),
+                                                            name: self.host_name.trim().to_string(),
                                                             address: self
                                                                 .host_address
                                                                 .trim()

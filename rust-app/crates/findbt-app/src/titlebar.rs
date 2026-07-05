@@ -55,16 +55,14 @@ pub fn titlebar(
                 // Windows caption-button order, left to right: minimize,
                 // maximize, close. Building right-to-left, close goes first
                 // so it lands furthest right.
-                if widgets::titlebar_button(ui, theme, widgets::CaptionIcon::Close, true)
-                    .clicked()
+                if widgets::titlebar_button(ui, theme, widgets::CaptionIcon::Close, true).clicked()
                 {
                     ui.ctx().send_viewport_cmd(egui::ViewportCommand::Close);
                 }
                 if widgets::titlebar_button(ui, theme, widgets::CaptionIcon::Maximize, false)
                     .clicked()
                 {
-                    let maximized =
-                        ui.input(|input| input.viewport().maximized.unwrap_or(false));
+                    let maximized = ui.input(|input| input.viewport().maximized.unwrap_or(false));
                     ui.ctx()
                         .send_viewport_cmd(egui::ViewportCommand::Maximized(!maximized));
                 }
