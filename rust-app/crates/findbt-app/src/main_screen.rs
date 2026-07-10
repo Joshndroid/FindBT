@@ -22,6 +22,7 @@ pub enum MainScreenAction {
     ResetCapture,
     SetKindFilter(KindFilter),
     SetFilterText(String),
+    OpenScanConsole,
     OpenSettings,
 }
 
@@ -98,24 +99,7 @@ fn sidebar(
         });
     });
 
-    ui.with_layout(egui::Layout::bottom_up(egui::Align::Min), |ui| {
-        ui.add_space(32.0);
-        sidebar_footer_button(
-            ui,
-            theme,
-            "Settings",
-            MainScreenAction::OpenSettings,
-            action,
-        );
-        ui.add_space(8.0);
-        sidebar_footer_button(
-            ui,
-            theme,
-            "Generate Report",
-            MainScreenAction::GenerateReport,
-            action,
-        );
-    });
+    sidebar_footer(ui, theme, action);
 }
 
 fn sidebar_content(
@@ -156,6 +140,10 @@ fn sidebar_content(
     ui.add_space(8.0);
     if widgets::sidebar_button(ui, theme, "Reset capture").clicked() {
         *action = Some(MainScreenAction::ResetCapture);
+    }
+    ui.add_space(8.0);
+    if widgets::sidebar_button(ui, theme, "Live Log").clicked() {
+        *action = Some(MainScreenAction::OpenScanConsole);
     }
     if scanning_phase == Some(active_phase) {
         ui.add_space(8.0);
@@ -204,22 +192,38 @@ fn sidebar_content(
     }
 }
 
-fn sidebar_footer_button(
-    ui: &mut egui::Ui,
-    theme: Theme,
-    label: &str,
-    button_action: MainScreenAction,
-    action: &mut Option<MainScreenAction>,
-) {
-    ui.horizontal(|ui| {
-        ui.add_space(18.0);
-        ui.vertical(|ui| {
-            ui.set_width(224.0);
-            if widgets::sidebar_button(ui, theme, label).clicked() {
-                *action = Some(button_action);
+fn sidebar_footer(ui: &mut egui::Ui, theme: Theme, action: &mut Option<MainScreenAction>) {
+    const LEFT_INSET: f32 = 18.0;
+    const RIGHT_INSET: f32 = 18.0;
+    const BOTTOM_INSET: f32 = 40.0;
+    const BUTTON_HEIGHT: f32 = 34.0;
+    const BUTTON_GAP: f32 = 8.0;
+
+    let rect = ui.max_rect();
+    let footer_height = BUTTON_HEIGHT * 2.0 + BUTTON_GAP;
+    let footer_rect = egui::Rect::from_min_size(
+        egui::pos2(
+            rect.left() + LEFT_INSET,
+            rect.bottom() - BOTTOM_INSET - footer_height,
+        ),
+        egui::vec2(rect.width() - LEFT_INSET - RIGHT_INSET, footer_height),
+    );
+
+    ui.scope_builder(
+        egui::UiBuilder::new()
+            .max_rect(footer_rect)
+            .layout(egui::Layout::top_down(egui::Align::Min)),
+        |ui| {
+            ui.set_width(footer_rect.width());
+            if widgets::sidebar_button(ui, theme, "Generate Report").clicked() {
+                *action = Some(MainScreenAction::GenerateReport);
             }
-        });
-    });
+            ui.add_space(BUTTON_GAP);
+            if widgets::sidebar_button(ui, theme, "Settings").clicked() {
+                *action = Some(MainScreenAction::OpenSettings);
+            }
+        },
+    );
 }
 
 fn main_panel(
@@ -255,16 +259,24 @@ fn main_panel(
 }
 
 fn page_heading(ui: &mut egui::Ui, theme: Theme, active_phase: ScanPhase) {
+    const PHASE_DESCRIPTION_HEIGHT: f32 = 48.0;
+
     ui.heading(
         egui::RichText::new(active_phase.tab_title())
             .color(theme.text)
             .size(22.0),
     );
     ui.add_space(4.0);
-    ui.label(
-        egui::RichText::new(active_phase.description())
-            .color(theme.text_muted)
-            .size(12.0),
+    ui.allocate_ui_with_layout(
+        egui::vec2(ui.available_width(), PHASE_DESCRIPTION_HEIGHT),
+        egui::Layout::top_down(egui::Align::Min),
+        |ui| {
+            ui.label(
+                egui::RichText::new(active_phase.description())
+                    .color(theme.text_muted)
+                    .size(12.0),
+            );
+        },
     );
 }
 
@@ -428,7 +440,7 @@ fn device_table(
                     header(ui, theme, "RSSI");
                     header(ui, theme, "Baseline");
                     header(ui, theme, "Target");
-                    header(ui, theme, "Verification");
+                    header(ui, theme, "Confirmation");
                     ui.end_row();
 
                     for device in devices {

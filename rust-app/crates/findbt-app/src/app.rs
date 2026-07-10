@@ -12,6 +12,7 @@ use crate::{
     settings::{AppSettings, ThemeSetting},
     settings_screen::{SettingsScreenAction, SettingsScreenState, SettingsSection},
     theme::{AccentColor, Theme},
+    widgets,
     wizard::{WizardAction, WizardState},
 };
 
@@ -37,6 +38,8 @@ pub struct FindBtApp {
     route: MainRoute,
     settings_section: SettingsSection,
     report_error_open: bool,
+    scan_console_open: bool,
+    scan_console_lines: Vec<String>,
     settings: AppSettings,
     /// The real bundled app icon, uploaded to the GPU once at startup and
     /// reused everywhere the icon is shown (titlebar, wizard) so it never
@@ -145,6 +148,11 @@ impl FindBtApp {
             route: MainRoute::Capture,
             settings_section: SettingsSection::Appearance,
             report_error_open: false,
+            scan_console_open: false,
+            scan_console_lines: vec![format!(
+                "[{}] FindBT live scan log ready.",
+                Local::now().format("%H:%M:%S")
+            )],
             settings: AppSettings::load(),
             app_icon: load_app_icon_texture(ctx),
         }
@@ -189,9 +197,18 @@ impl FindBtApp {
                     stopped_at: None,
                     stop_reason: String::new(),
                 });
+                self.push_scan_console_line(format!(
+                    "[{}] START {}",
+                    Local::now().format("%H:%M:%S"),
+                    phase.report_label()
+                ));
                 self.status = format!("{} running.", phase.tab_title());
             }
             Err(err) => {
+                self.push_scan_console_line(format!(
+                    "[{}] ERROR scan could not start: {err}",
+                    Local::now().format("%H:%M:%S")
+                ));
                 self.status = format!("Scan could not start: {err}");
             }
         }
@@ -208,6 +225,11 @@ impl FindBtApp {
             }
         }
         if let Some(phase) = self.scanning_phase.take() {
+            self.push_scan_console_line(format!(
+                "[{}] STOP {} | {reason}",
+                Local::now().format("%H:%M:%S"),
+                phase.report_label()
+            ));
             self.status = format!("{} stopped.", phase.tab_title());
         }
     }
@@ -216,8 +238,18 @@ impl FindBtApp {
         let Some(receiver) = &self.receiver else {
             return;
         };
+        let mut observations = Vec::new();
+        while let Ok(observation) = receiver.try_recv() {
+            observations.push(observation);
+        }
+        if observations.is_empty() {
+            return;
+        }
+        for observation in &observations {
+            self.push_scan_console_observation(observation);
+        }
         if let Screen::Main(session) = &mut self.screen {
-            while let Ok(observation) = receiver.try_recv() {
+            for observation in observations {
                 session.record(observation);
             }
             let local = normalize_address(&session.host.address);
@@ -311,6 +343,11 @@ impl FindBtApp {
                 self.scanning_phase = None;
                 self.current_run = None;
                 self.report_error_open = false;
+                self.scan_console_lines.clear();
+                self.push_scan_console_line(format!(
+                    "[{}] Capture reset.",
+                    Local::now().format("%H:%M:%S")
+                ));
                 if let Screen::Main(session) = &mut self.screen {
                     session.reset_capture();
                 }
@@ -319,6 +356,7 @@ impl FindBtApp {
             }
             MainScreenAction::SetKindFilter(kind) => self.kind_filter = kind,
             MainScreenAction::SetFilterText(text) => self.filter_text = text,
+            MainScreenAction::OpenScanConsole => self.scan_console_open = true,
             MainScreenAction::OpenSettings => self.route = MainRoute::Settings,
         }
     }
@@ -382,5 +420,114 @@ impl eframe::App for FindBtApp {
 
         let ctx = ui.ctx().clone();
         self.report_not_ready_popup(&ctx);
+        self.scan_console_window(&ctx);
+    }
+}
+
+impl FindBtApp {
+    fn push_scan_console_observation(&mut self, observation: &RawObservation) {
+        let endpoint = if observation.address.trim().is_empty() {
+            observation.device_id.as_str()
+        } else {
+            observation.address.as_str()
+        };
+        let rssi = observation
+            .rssi
+            .map(|value| format!("{value} dBm"))
+            .unwrap_or_else(|| "RSSI n/a".to_string());
+        let paired = if observation.is_paired {
+            "paired"
+        } else {
+            "not paired"
+        };
+        self.push_scan_console_line(format!(
+            "[{}] phase={} | {} | {} | {} | {} | {} | {}",
+            observation.observed_at.format("%H:%M:%S%.3f"),
+            observation.phase.number(),
+            observation.kind.label(),
+            observation.name,
+            endpoint,
+            rssi,
+            paired,
+            observation.properties_summary
+        ));
+    }
+
+    fn push_scan_console_line(&mut self, line: String) {
+        const MAX_CONSOLE_LINES: usize = 2_000;
+        self.scan_console_lines.push(line);
+        if self.scan_console_lines.len() > MAX_CONSOLE_LINES {
+            let overflow = self.scan_console_lines.len() - MAX_CONSOLE_LINES;
+            self.scan_console_lines.drain(0..overflow);
+        }
+    }
+
+    fn scan_console_window(&mut self, ctx: &egui::Context) {
+        if !self.scan_console_open {
+            return;
+        }
+        let mut open = self.scan_console_open;
+        egui::Window::new("Live Scan Log")
+            .open(&mut open)
+            .default_width(780.0)
+            .default_height(420.0)
+            .resizable(true)
+            .collapsible(false)
+            .frame(
+                egui::Frame::new()
+                    .fill(self.theme.bg_sunken)
+                    .stroke(egui::Stroke::new(1.0, self.theme.border))
+                    .corner_radius(8.0)
+                    .inner_margin(egui::Margin::same(12)),
+            )
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    ui.label(
+                        egui::RichText::new(format!(
+                            "{} raw event{}",
+                            self.scan_console_lines.len(),
+                            if self.scan_console_lines.len() == 1 {
+                                ""
+                            } else {
+                                "s"
+                            }
+                        ))
+                        .color(self.theme.text_muted)
+                        .size(11.0),
+                    );
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if widgets::secondary_button(ui, self.theme, "Clear").clicked() {
+                            self.scan_console_lines.clear();
+                            self.push_scan_console_line(format!(
+                                "[{}] Live scan log cleared.",
+                                Local::now().format("%H:%M:%S")
+                            ));
+                        }
+                    });
+                });
+                ui.add_space(8.0);
+                egui::Frame::new()
+                    .fill(self.theme.bg)
+                    .stroke(egui::Stroke::new(1.0, self.theme.border_soft))
+                    .corner_radius(6.0)
+                    .inner_margin(egui::Margin::same(10))
+                    .show(ui, |ui| {
+                        egui::ScrollArea::vertical()
+                            .stick_to_bottom(true)
+                            .auto_shrink([false, false])
+                            .show(ui, |ui| {
+                                ui.set_min_width(ui.available_width());
+                                for line in &self.scan_console_lines {
+                                    ui.label(
+                                        egui::RichText::new(line)
+                                            .monospace()
+                                            .color(self.theme.text)
+                                            .size(11.0),
+                                    );
+                                }
+                            });
+                    });
+            });
+        self.scan_console_open = open;
     }
 }

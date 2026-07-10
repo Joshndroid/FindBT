@@ -40,7 +40,7 @@ impl ScanPhase {
         match self {
             ScanPhase::Baseline => "Baseline Scan",
             ScanPhase::Target => "Target Scan",
-            ScanPhase::Verification => "Verification Scan",
+            ScanPhase::Verification => "Confirmation Scan",
         }
     }
 
@@ -50,7 +50,7 @@ impl ScanPhase {
             ScanPhase::Baseline => "Phase 1 - Baseline (background before target activation)",
             ScanPhase::Target => "Phase 2 - Target activated",
             ScanPhase::Verification => {
-                "Phase 3 - Verification (background after target deactivation)"
+                "Phase 3 - Confirmation (background after target deactivation)"
             }
         }
     }
@@ -59,13 +59,13 @@ impl ScanPhase {
     pub fn description(self) -> &'static str {
         match self {
             ScanPhase::Baseline => {
-                "Capture ambient Bluetooth devices in range before the target device is powered on."
+                "Ensure the target Bluetooth device is powered off or not currently discoverable. Run the Baseline Scan to record the background Bluetooth environment. Ideally, this scan should reveal no devices. This confirms what devices, if any, are present before the target device is introduced for scanning."
             }
             ScanPhase::Target => {
-                "Target device is now powered on. Re-scan and compare against the baseline for anything new."
+                "Power on the target Bluetooth device or enable discoverable/pairing mode. Run the Target Scan. Ideally, this scan should capture the target Bluetooth device as the only observed device. On completion, power off the target Bluetooth device or disable discoverable/pairing mode."
             }
             ScanPhase::Verification => {
-                "Repeat the scan once more, unchanged, to see which devices are still present."
+                "With the target Bluetooth device powered off or discoverable/pairing mode disabled, run the Confirmation Scan. This confirms that the background Bluetooth environment matches the Baseline Scan."
             }
         }
     }
@@ -75,13 +75,13 @@ impl ScanPhase {
     pub fn operator_instruction(self) -> &'static str {
         match self {
             ScanPhase::Baseline => {
-                "Instruction: conduct a scan to determine background Bluetooth devices before the target device is activated."
+                "Instruction: ensure the target Bluetooth device is powered off or not currently discoverable. Run the Baseline Scan to record the background Bluetooth environment. Ideally, this scan should reveal no devices. This confirms what devices, if any, are present before the target device is introduced for scanning."
             }
             ScanPhase::Target => {
-                "Instruction: manually turn on or activate the target Bluetooth device, wait until it is ready, then start this phase."
+                "Instruction: power on the target Bluetooth device or enable discoverable/pairing mode. Run the Target Scan. Ideally, this scan should capture the target Bluetooth device as the only observed device. On completion, power off the target Bluetooth device or disable discoverable/pairing mode."
             }
             ScanPhase::Verification => {
-                "Instruction: turn the target Bluetooth device off, wait until it is off, then conduct the final background Bluetooth scan."
+                "Instruction: with the target Bluetooth device powered off or discoverable/pairing mode disabled, run the Confirmation Scan. This confirms that the background Bluetooth environment matches the Baseline Scan."
             }
         }
     }

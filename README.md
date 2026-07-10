@@ -10,7 +10,7 @@ The capture procedure isolates a target device by differencing three scans of th
 
 1. **Baseline** — scan with the target device powered off. Everything seen here is background.
 2. **Target** — power the target device on, scan again. A device that appears now, but not in the baseline, is a candidate.
-3. **Verification** — power the target device off, scan once more. A candidate that disappears again corroborates the phase-2 observation; a device that first appears now means the environment changed mid-capture and the run should be treated as unreliable.
+3. **Confirmation** — power the target device off, scan once more. A candidate that disappears again corroborates the phase-2 observation; a device that first appears now means the environment changed mid-capture and the run should be treated as unreliable.
 
 The report's "Newly seen" column encodes exactly this: the first phase in which each device was observed. Ideally phase 2 has exactly one newly seen device (the target) and phase 3 has zero.
 

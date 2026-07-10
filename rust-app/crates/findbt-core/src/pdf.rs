@@ -325,7 +325,7 @@ fn build_pages(session: &CaptureSession) -> Vec<String> {
             "First phase",
             "Baseline",
             "Target",
-            "Verification",
+            "Confirmation",
             "Device id",
             "Last seen",
             "Properties",

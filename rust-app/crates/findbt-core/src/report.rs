@@ -217,7 +217,7 @@ pub fn generate_html(session: &CaptureSession) -> String {
       <p class="section-note">One row per device, tracked across all three phases.</p>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Local Radio</th><th>Name</th><th>Kind</th><th>Address</th><th>Paired</th><th>First phase</th><th>Baseline RSSI</th><th>Target RSSI</th><th>Verification RSSI</th><th>Windows/device id</th><th>Last seen</th><th>Properties</th></tr></thead>
+          <thead><tr><th>Local Radio</th><th>Name</th><th>Kind</th><th>Address</th><th>Paired</th><th>First phase</th><th>Baseline RSSI</th><th>Target RSSI</th><th>Confirmation RSSI</th><th>Windows/device id</th><th>Last seen</th><th>Properties</th></tr></thead>
           <tbody>
 {device_rows}
           </tbody>

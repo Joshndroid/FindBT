@@ -17,7 +17,7 @@ You isolate one device by scanning the same environment three times and comparin
 
 - **Phase 1 — Baseline.** The target device is OFF. Everything heard now is background (other people's phones, keyboards, TVs, and so on).
 - **Phase 2 — Target.** The target device is turned ON and scanned. Whatever appears now that was not in the baseline is a candidate for the target.
-- **Phase 3 — Verification.** The target device is turned OFF again and the environment is scanned once more. The candidate should disappear; the background should still be there.
+- **Phase 3 — Confirmation.** The target device is turned OFF again and the environment is scanned once more. The candidate should disappear; the background should still be there.
 
 A clean run reads like this in the report's Phase summary table: Phase 2 has exactly one "Newly seen" device, and Phase 3 has zero. If Phase 3 shows newly seen devices, the environment changed during the capture (someone walked in with a phone, a device woke up) and the run should be repeated or the anomaly documented.
 
@@ -59,10 +59,10 @@ cargo run -p findbt-app --features mock-backend   # simulated devices, no hardwa
 1. **Launch FindBT.** The session wizard appears.
 2. **Fill in the case fields:** Case date (prefilled, `YYYY-MM-DD`), Name (person, device owner, or case name), and Section (team, section, or exhibit reference). Name and Section are required before the button enables.
 3. **Confirm the host adapter.** FindBT auto-detects the computer's own Bluetooth radio (name and address) and shows it in the wizard. If detection failed or you want a custom label, type the radio's address or a short tag yourself. This "tagged local radio" is used to mark the computer's own radio in the results so nobody mistakes it for a discovered device.
-4. **Click `Begin Scan`.** The main screen opens with the three phases listed in the sidebar: 1 Baseline Scan, 2 Target Scan, 3 Verification Scan.
+4. **Click `Begin Scan`.** The main screen opens with the three phases listed in the sidebar: 1 Baseline Scan, 2 Target Scan, 3 Confirmation Scan.
 5. **Phase 1 — Baseline.** Target device is OFF. Select the Baseline phase, read the instruction under the heading, click `Start Scan`. Let it run (2–5 minutes is typical; longer catches slow advertisers). Devices appear live in the table. Click `Stop Scan` when done. Phases do not stop by themselves — the operator controls the window.
 6. **Phase 2 — Target.** Click phase 2 in the sidebar. Power the target device ON and wait until it is fully started. Click `Start Scan`, run a comparable window, click `Stop Scan`. Watch the phase-marker columns: a device with a filled marker in Target but not Baseline is what you are looking for.
-7. **Phase 3 — Verification.** Click phase 3. Power the target device OFF and wait until it is fully off. Click `Start Scan`, run a comparable window, `Stop Scan`.
+7. **Phase 3 — Confirmation.** Click phase 3. Power the target device OFF and wait until it is fully off. Click `Start Scan`, run a comparable window, `Stop Scan`.
 8. **Choose the report format** (once, or whenever you want to change it): click `Settings` in the title bar and pick HTML export or PDF export under "Report generation".
 9. **Click `Generate Report`,** choose where to save the file, and store it with the case material. Generate both formats if useful — the content is identical.
 
@@ -70,7 +70,7 @@ Useful controls during a capture: the filter box narrows the table by name/addre
 
 ## 6. Reading the screen and the report
 
-Each table row is one device, tracked across all three phases. The three marker columns (Baseline / Target / Verification) mean: filled circle = seen in that phase; hollow circle = that phase ran but the device was not seen; faint circle = that phase has not run yet. RSSI is the signal strength in dBm for the currently selected phase (closer to 0 = stronger; -42 is strong, -75 is weak; strong usually means physically near).
+Each table row is one device, tracked across all three phases. The three marker columns (Baseline / Target / Confirmation) mean: filled circle = seen in that phase; hollow circle = that phase ran but the device was not seen; faint circle = that phase has not run yet. RSSI is the signal strength in dBm for the currently selected phase (closer to 0 = stronger; -42 is strong, -75 is weak; strong usually means physically near).
 
 The exported report contains, in order: capture metadata (including the tagged local radio), Phase runs (every start/stop with timestamps, duration, and stop reason), Phase summary (per phase: raw observation count, unique addresses, and newly-seen count), Device registry (one row per device with per-phase RSSI), and the Raw audit log (every single backend event, unfiltered, append-only).
 
