@@ -12,7 +12,7 @@ mock-backend = ["findbt-backend/mock-backend"]
 
 [dependencies]
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
-eframe = "0.35"
+eframe = "0.36"
 egui = "0.35"
 findbt-backend = { path = "../findbt-backend" }
 findbt-core = { path = "../findbt-core" }
