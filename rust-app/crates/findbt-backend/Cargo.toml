@@ -23,7 +23,7 @@ windows = { version = "0.62.2", features = [
     "Foundation",
     "Foundation_Collections",
 ] }
-windows-collections = "0.3.2"
+windows-collections = "0.100.0"
 windows-core = "0.100.0"
 windows-future = "0.3.2"
 
